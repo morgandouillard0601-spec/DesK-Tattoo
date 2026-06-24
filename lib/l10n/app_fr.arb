@@ -1,0 +1,8 @@
+{
+  "@@locale": "fr",
+  "appTitle": "DesK Tattoo",
+  "welcome": "Bienvenue",
+  "homeSubtitle": "La base de votre application mobile est prête.",
+  "toggleTheme": "Changer de thème",
+  "counter": "{count, plural, =0{Aucun appui pour le moment} =1{Appuyé {count} fois} other{Appuyé {count} fois}}"
+}

@@ -1,0 +1,29 @@
+{
+  "@@locale": "en",
+  "appTitle": "DesK Tattoo",
+  "@appTitle": {
+    "description": "Application title"
+  },
+  "welcome": "Welcome",
+  "@welcome": {
+    "description": "Welcome label on the home screen"
+  },
+  "homeSubtitle": "The foundation of your mobile app is ready.",
+  "@homeSubtitle": {
+    "description": "Subtitle shown on the home screen"
+  },
+  "toggleTheme": "Toggle theme",
+  "@toggleTheme": {
+    "description": "Theme toggle button"
+  },
+  "counter": "{count, plural, =0{No taps yet} =1{Tapped {count} time} other{Tapped {count} times}}",
+  "@counter": {
+    "description": "Counter label",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "compact"
+      }
+    }
+  }
+}
