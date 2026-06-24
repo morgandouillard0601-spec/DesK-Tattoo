@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -13,7 +14,7 @@ class DeskTattooApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeMode themeMode = ref.watch(themeModeProvider);
-    final router = ref.watch(appRouterProvider);
+    final GoRouter router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
       title: 'DesK Tattoo',
@@ -22,6 +23,7 @@ class DeskTattooApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       routerConfig: router,
+      locale: const Locale('fr'),
       localizationsDelegates: const <LocalizationsDelegate<Object>>[
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

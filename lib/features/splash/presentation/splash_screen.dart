@@ -13,9 +13,9 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future<void>.delayed(const Duration(milliseconds: 800));
+      await Future<void>.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
-      context.goNamed('home');
+      context.goNamed('planning');
     });
   }
 
@@ -28,20 +28,38 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(
-              Icons.brush_rounded,
-              size: 72,
-              color: theme.colorScheme.primary,
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Icon(
+                Icons.brush_rounded,
+                size: 56,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text(
               'DesK Tattoo',
               style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 24),
-            const CircularProgressIndicator(),
+            const SizedBox(height: 8),
+            Text(
+              'Gestion de studio',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 28),
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
           ],
         ),
       ),
