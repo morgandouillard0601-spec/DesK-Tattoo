@@ -118,7 +118,10 @@ class _StockScreenState extends ConsumerState<StockScreen> {
                 itemCount: items.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (BuildContext context, int index) =>
-                    _StockItemTile(item: items[index]),
+                    _StockItemTile(
+                  item: items[index],
+                  onTap: () => _editItem(items[index]),
+                ),
               ),
             ),
         ],
@@ -137,6 +140,17 @@ class _StockScreenState extends ConsumerState<StockScreen> {
     if (created != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Article ajouté · ${created.name}')),
+      );
+    }
+  }
+
+  Future<void> _editItem(StockItem item) async {
+    final StockItem? saved =
+        await showStockFormSheet(context, initial: item);
+    if (!mounted) return;
+    if (saved != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Article mis à jour · ${saved.name}')),
       );
     }
   }
@@ -190,9 +204,10 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _StockItemTile extends StatelessWidget {
-  const _StockItemTile({required this.item});
+  const _StockItemTile({required this.item, this.onTap});
 
   final StockItem item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -201,10 +216,13 @@ class _StockItemTile extends StatelessWidget {
     final Color iconFg = theme.colorScheme.onPrimaryContainer;
 
     return Card(
+      clipBehavior: Clip.antiAlias,
       color: theme.colorScheme.surfaceContainerHigh,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
           children: <Widget>[
             Container(
               width: 44,
@@ -245,11 +263,43 @@ class _StockItemTile extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    item.category.label,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: <Widget>[
+                      Text(
+                        item.category.label,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      if (item.subCategory != null) ...<Widget>[
+                        Text(
+                          '·',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            item.subCategory!,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSecondaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -280,6 +330,7 @@ class _StockItemTile extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

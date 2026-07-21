@@ -6,7 +6,10 @@ import '../../../shared/widgets/form_sheet_scaffold.dart';
 import '../data/stock_repository.dart';
 import '../domain/stock_item.dart';
 
-Future<StockItem?> showStockFormSheet(BuildContext context) {
+Future<StockItem?> showStockFormSheet(
+  BuildContext context, {
+  StockItem? initial,
+}) {
   return showModalBottomSheet<StockItem>(
     context: context,
     isScrollControlled: true,
@@ -15,12 +18,14 @@ Future<StockItem?> showStockFormSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (_) => const StockFormSheet(),
+    builder: (_) => StockFormSheet(initial: initial),
   );
 }
 
 class StockFormSheet extends ConsumerStatefulWidget {
-  const StockFormSheet({super.key});
+  const StockFormSheet({this.initial, super.key});
+
+  final StockItem? initial;
 
   @override
   ConsumerState<StockFormSheet> createState() => _StockFormSheetState();
@@ -28,13 +33,34 @@ class StockFormSheet extends ConsumerStatefulWidget {
 
 class _StockFormSheetState extends ConsumerState<StockFormSheet> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _name = TextEditingController();
-  final TextEditingController _quantity = TextEditingController(text: '1');
-  final TextEditingController _threshold = TextEditingController(text: '0');
-  final TextEditingController _unit = TextEditingController(text: 'pcs');
-  final TextEditingController _unitPrice = TextEditingController();
+  late final TextEditingController _name;
+  late final TextEditingController _quantity;
+  late final TextEditingController _threshold;
+  late final TextEditingController _unit;
+  late final TextEditingController _unitPrice;
+  final TextEditingController _customSub = TextEditingController();
 
-  StockCategory _category = StockCategory.cartridges;
+  late StockCategory _category;
+  String? _subCategory;
+
+  bool get _isEdit => widget.initial != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final StockItem? i = widget.initial;
+    _name = TextEditingController(text: i?.name ?? '');
+    _quantity = TextEditingController(text: i?.quantity.toString() ?? '1');
+    _threshold = TextEditingController(text: i?.threshold.toString() ?? '0');
+    _unit = TextEditingController(text: i?.unit ?? 'pcs');
+    _unitPrice = TextEditingController(
+      text: i?.unitPrice != null && i!.unitPrice != 0
+          ? i.unitPrice.toString()
+          : '',
+    );
+    _category = i?.category ?? StockCategory.cartridges;
+    _subCategory = i?.subCategory;
+  }
 
   @override
   void dispose() {
@@ -43,33 +69,90 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
     _threshold.dispose();
     _unit.dispose();
     _unitPrice.dispose();
+    _customSub.dispose();
     super.dispose();
   }
 
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final StockItem item = StockItem(
-      id: generateId('s'),
-      name: _name.text.trim(),
-      category: _category,
-      quantity: int.tryParse(_quantity.text) ?? 0,
-      threshold: int.tryParse(_threshold.text) ?? 0,
-      unit: _unit.text.trim(),
-      unitPrice: double.tryParse(_unitPrice.text.replaceAll(',', '.')) ?? 0,
-      lastRestockAt: DateTime.now(),
+    final String? sub = _customSub.text.trim().isNotEmpty
+        ? _customSub.text.trim()
+        : _subCategory;
+
+    final StockNotifier notifier = ref.read(stockProvider.notifier);
+
+    if (_isEdit) {
+      final StockItem updated = StockItem(
+        id: widget.initial!.id,
+        name: _name.text.trim(),
+        category: _category,
+        subCategory: sub,
+        quantity: int.tryParse(_quantity.text) ?? 0,
+        threshold: int.tryParse(_threshold.text) ?? 0,
+        unit: _unit.text.trim(),
+        unitPrice: double.tryParse(_unitPrice.text.replaceAll(',', '.')) ?? 0,
+        lastRestockAt: widget.initial!.lastRestockAt,
+      );
+      notifier.update(updated);
+      Navigator.of(context).pop(updated);
+    } else {
+      final StockItem item = StockItem(
+        id: generateId('s'),
+        name: _name.text.trim(),
+        category: _category,
+        subCategory: sub,
+        quantity: int.tryParse(_quantity.text) ?? 0,
+        threshold: int.tryParse(_threshold.text) ?? 0,
+        unit: _unit.text.trim(),
+        unitPrice: double.tryParse(_unitPrice.text.replaceAll(',', '.')) ?? 0,
+        lastRestockAt: DateTime.now(),
+      );
+      notifier.add(item);
+      Navigator.of(context).pop(item);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('Supprimer cet article ?'),
+        content: Text(
+          '« ${widget.initial!.name} » sera retiré définitivement du stock.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.errorContainer,
+              foregroundColor: Theme.of(ctx).colorScheme.onErrorContainer,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
     );
 
-    ref.read(stockProvider.notifier).add(item);
-    Navigator.of(context).pop(item);
+    if (ok == true && mounted) {
+      ref.read(stockProvider.notifier).delete(widget.initial!.id);
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final List<String> suggestions =
+        ref.read(stockProvider.notifier).subCategoriesFor(_category);
 
     return FormSheetScaffold(
-      title: 'Nouvel article',
+      title: _isEdit ? 'Modifier l\'article' : 'Nouvel article',
+      saveLabel: _isEdit ? 'Enregistrer' : 'Ajouter',
       onSave: _save,
       child: Form(
         key: _formKey,
@@ -88,13 +171,7 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
                   v == null || v.trim().isEmpty ? 'Requis' : null,
             ),
             const SizedBox(height: 16),
-            Text(
-              'Catégorie',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            const _SectionLabel('Catégorie'),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -105,9 +182,64 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
                   label: Text(c.label),
                   avatar: Icon(c.icon, size: 18),
                   selected: selected,
-                  onSelected: (_) => setState(() => _category = c),
+                  onSelected: (_) => setState(() {
+                    _category = c;
+                    _subCategory = null;
+                    _customSub.clear();
+                  }),
                 );
               }).toList(),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: <Widget>[
+                const _SectionLabel('Sous-catégorie'),
+                const SizedBox(width: 6),
+                Text(
+                  '(optionnel)',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (suggestions.isNotEmpty) ...<Widget>[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: suggestions.map((String s) {
+                  final bool selected = _subCategory == s;
+                  return ChoiceChip(
+                    label: Text(s),
+                    selected: selected,
+                    onSelected: (_) => setState(() {
+                      _subCategory = selected ? null : s;
+                      _customSub.clear();
+                    }),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 8),
+            ],
+            TextFormField(
+              controller: _customSub,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: 'Nouvelle sous-catégorie',
+                hintText: _subCategory == null
+                    ? 'Saisis une valeur personnalisée'
+                    : 'Remplace : $_subCategory',
+                prefixIcon: const Icon(Icons.add_rounded),
+                isDense: true,
+                helperText:
+                    'Elle apparaîtra ensuite comme suggestion pour cette catégorie',
+              ),
+              onChanged: (String v) {
+                if (v.trim().isNotEmpty && _subCategory != null) {
+                  setState(() => _subCategory = null);
+                }
+              },
             ),
             const SizedBox(height: 16),
             Row(
@@ -160,6 +292,20 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
                 suffixText: '€',
               ),
             ),
+            if (_isEdit) ...<Widget>[
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _confirmDelete,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                  side: BorderSide(color: theme.colorScheme.error),
+                ),
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Supprimer cet article'),
+              ),
+            ],
             const SizedBox(height: 8),
           ],
         ),
@@ -171,5 +317,23 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
     if (v == null || v.trim().isEmpty) return 'Requis';
     if (int.tryParse(v) == null) return 'Nombre invalide';
     return null;
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Text(
+      label,
+      style: theme.textTheme.labelLarge?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+        fontWeight: FontWeight.w700,
+      ),
+    );
   }
 }

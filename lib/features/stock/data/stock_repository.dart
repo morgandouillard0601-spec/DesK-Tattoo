@@ -13,6 +13,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       id: 's1',
       name: 'Cartouches 3RL',
       category: StockCategory.cartridges,
+      subCategory: 'Round Liner',
       quantity: 32,
       threshold: 20,
       unit: 'pcs',
@@ -23,6 +24,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       id: 's2',
       name: 'Cartouches 7M1',
       category: StockCategory.cartridges,
+      subCategory: 'Magnum',
       quantity: 8,
       threshold: 15,
       unit: 'pcs',
@@ -33,6 +35,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       id: 's3',
       name: 'Encre Noire Dynamic',
       category: StockCategory.ink,
+      subCategory: 'Dynamic',
       quantity: 4,
       threshold: 3,
       unit: 'flacons',
@@ -43,6 +46,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       id: 's4',
       name: 'Encre Rouge World Famous',
       category: StockCategory.ink,
+      subCategory: 'World Famous',
       quantity: 2,
       threshold: 2,
       unit: 'flacons',
@@ -53,6 +57,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       id: 's5',
       name: 'Gants nitrile noirs M',
       category: StockCategory.gloves,
+      subCategory: 'Nitrile noir · Taille M',
       quantity: 320,
       threshold: 100,
       unit: 'pcs',
@@ -63,6 +68,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       id: 's6',
       name: 'Film de protection',
       category: StockCategory.hygiene,
+      subCategory: 'Film protection',
       quantity: 1,
       threshold: 2,
       unit: 'rouleaux',
@@ -73,6 +79,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       id: 's7',
       name: 'Savon vert 1L',
       category: StockCategory.hygiene,
+      subCategory: 'Savon vert',
       quantity: 3,
       threshold: 2,
       unit: 'bidons',
@@ -82,6 +89,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       id: 's8',
       name: 'Aiguilles Magnum 13',
       category: StockCategory.needles,
+      subCategory: 'Magnum',
       quantity: 50,
       threshold: 30,
       unit: 'pcs',
@@ -91,6 +99,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       id: 's9',
       name: 'Machine rotative Cheyenne',
       category: StockCategory.machines,
+      subCategory: 'Rotative',
       quantity: 2,
       threshold: 1,
       unit: 'pcs',
@@ -109,8 +118,35 @@ class StockNotifier extends Notifier<List<StockItem>> {
   List<StockItem> lowStock() =>
       state.where((StockItem i) => i.isLow).toList(growable: false);
 
+  /// Returns default suggestions + custom sub-categories already used in
+  /// existing items for the given category (deduped, order preserved).
+  List<String> subCategoriesFor(StockCategory category) {
+    final List<String> defaults = category.defaultSubCategories;
+    final Set<String> customs = <String>{};
+    for (final StockItem i in state) {
+      if (i.category == category &&
+          i.subCategory != null &&
+          i.subCategory!.trim().isNotEmpty &&
+          !defaults.contains(i.subCategory)) {
+        customs.add(i.subCategory!);
+      }
+    }
+    return <String>[...defaults, ...customs];
+  }
+
   void add(StockItem item) {
     state = <StockItem>[...state, item];
+  }
+
+  void update(StockItem item) {
+    state = <StockItem>[
+      for (final StockItem i in state)
+        if (i.id == item.id) item else i,
+    ];
+  }
+
+  void delete(String id) {
+    state = state.where((StockItem i) => i.id != id).toList(growable: false);
   }
 }
 

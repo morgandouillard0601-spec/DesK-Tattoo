@@ -22,6 +22,67 @@ extension StockCategoryX on StockCategory {
         StockCategory.machines => Icons.precision_manufacturing_rounded,
         StockCategory.other => Icons.inventory_2_rounded,
       };
+
+  /// Suggested sub-categories shown as chips in the form. The user can also
+  /// type a custom value.
+  List<String> get defaultSubCategories => switch (this) {
+        StockCategory.needles => const <String>[
+            'Round Liner',
+            'Round Shader',
+            'Magnum',
+            'Curved Magnum',
+            'Flat',
+            'Bugpin',
+          ],
+        StockCategory.cartridges => const <String>[
+            'Round Liner',
+            'Round Shader',
+            'Magnum',
+            'Curved Magnum',
+            'Flat',
+            'Bugpin',
+            'Textured',
+          ],
+        StockCategory.ink => const <String>[
+            'Noir',
+            'Grey wash',
+            'Blanc',
+            'Couleur',
+            'Dynamic',
+            'World Famous',
+            'Eternal',
+            'Intenze',
+          ],
+        StockCategory.gloves => const <String>[
+            'Nitrile noir',
+            'Nitrile bleu',
+            'Latex',
+            'Vinyle',
+            'Taille S',
+            'Taille M',
+            'Taille L',
+            'Taille XL',
+          ],
+        StockCategory.hygiene => const <String>[
+            'Savon vert',
+            'Désinfectant',
+            'Film protection',
+            'Papier absorbant',
+            'Vaseline',
+            'Cotons-tiges',
+            'Serviettes',
+          ],
+        StockCategory.machines => const <String>[
+            'Rotative',
+            'Bobine',
+            'Pen',
+            'Wireless',
+            'Pédale',
+            'Alimentation',
+            'Câble RCA',
+          ],
+        StockCategory.other => const <String>[],
+      };
 }
 
 class StockItem {
@@ -33,12 +94,14 @@ class StockItem {
     required this.threshold,
     required this.unit,
     required this.unitPrice,
+    this.subCategory,
     this.lastRestockAt,
   });
 
   final String id;
   final String name;
   final StockCategory category;
+  final String? subCategory;
   final int quantity;
   final int threshold;
   final String unit;
