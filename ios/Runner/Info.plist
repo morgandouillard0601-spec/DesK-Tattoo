@@ -11,6 +11,10 @@
 		<string>en</string>
 		<string>fr</string>
 	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>CFBundleDisplayName</key>
 	<string>Desk Tattoo</string>
 	<key>CFBundleExecutable</key>

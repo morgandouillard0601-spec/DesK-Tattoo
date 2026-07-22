@@ -1,11 +1,22 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 
 import '../../../shared/utils/date_format.dart';
+import '../../../shared/utils/paris_clock.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../profile/data/artist_repository.dart';
+import '../../profile/domain/artist.dart';
+import '../data/accounting_export_service.dart';
+import '../data/accounting_pdf.dart';
 import '../data/accounting_repository.dart';
 import '../domain/transaction.dart';
 import 'transaction_form_sheet.dart';
+
+const AccountingExportService _exportService = AccountingExportService();
 
 class AccountingScreen extends ConsumerWidget {
   const AccountingScreen({super.key});
@@ -28,13 +39,14 @@ class AccountingScreen extends ConsumerWidget {
         title: const Text('Comptabilité'),
         actions: <Widget>[
           IconButton(
-            tooltip: 'Exporter',
-            icon: const Icon(Icons.ios_share_rounded),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Export — bientôt')),
-              );
-            },
+            tooltip: 'Aperçu PDF',
+            icon: const Icon(Icons.picture_as_pdf_rounded),
+            onPressed: () => _previewPdf(context, ref),
+          ),
+          IconButton(
+            tooltip: 'Télécharger',
+            icon: const Icon(Icons.download_rounded),
+            onPressed: () => _downloadPdf(context, ref),
           ),
         ],
       ),
@@ -48,6 +60,8 @@ class AccountingScreen extends ConsumerWidget {
                 balance: balance,
                 income: income,
                 expense: expense,
+                onPreview: () => _previewPdf(context, ref),
+                onDownload: () => _downloadPdf(context, ref),
               ),
             ),
           ),
@@ -108,6 +122,97 @@ class AccountingScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _previewPdf(BuildContext context, WidgetRef ref) async {
+    final List<Transaction> transactions =
+        ref.read(accountingProvider.notifier).sorted();
+    final Artist artist = ref.read(artistProvider);
+
+    if (transactions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucune transaction à exporter')),
+      );
+      return;
+    }
+
+    final DateTime now = ParisClock.now();
+    final String filename =
+        'compta_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.pdf';
+
+    await Printing.layoutPdf(
+      name: filename,
+      format: PdfPageFormat.a4,
+      onLayout: (PdfPageFormat format) async {
+        final Uint8List bytes = await buildAccountingPdf(
+          artist: artist,
+          transactions: transactions,
+          generatedAt: now,
+        );
+        return bytes;
+      },
+    );
+  }
+
+  Future<void> _downloadPdf(BuildContext context, WidgetRef ref) async {
+    final List<Transaction> transactions =
+        ref.read(accountingProvider.notifier).sorted();
+    final Artist artist = ref.read(artistProvider);
+
+    if (transactions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucune transaction à télécharger')),
+      );
+      return;
+    }
+
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: <Widget>[
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Génération du PDF…'),
+          ],
+        ),
+        duration: Duration(seconds: 30),
+      ),
+    );
+
+    try {
+      final AccountingPdfResult result = await _exportService.downloadPdf(
+        artist: artist,
+        transactions: transactions,
+        generatedAt: ParisClock.now(),
+      );
+
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text(
+            'Téléchargé · ${result.filename}\n'
+            'Fichiers → « Sur mon iPad » → DesK Tattoo → exports',
+          ),
+          action: SnackBarAction(
+            label: 'Partager',
+            onPressed: () {
+              _exportService.shareBytes(result.bytes, result.filename);
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Erreur d\'export : $e')),
+      );
+    }
+  }
 }
 
 class _BalanceCard extends StatelessWidget {
@@ -116,35 +221,56 @@ class _BalanceCard extends StatelessWidget {
     required this.balance,
     required this.income,
     required this.expense,
+    required this.onPreview,
+    required this.onDownload,
   });
 
   final String month;
   final double balance;
   final double income;
   final double expense;
+  final VoidCallback onPreview;
+  final VoidCallback onDownload;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme cs = theme.colorScheme;
 
+    // Deep gradient using primary shades for a bold, high-contrast card.
+    final List<Color> gradient = theme.brightness == Brightness.light
+        ? <Color>[cs.primary, cs.tertiary]
+        : <Color>[cs.primaryContainer, cs.tertiaryContainer];
+    final Color onGradient = theme.brightness == Brightness.light
+        ? cs.onPrimary
+        : cs.onPrimaryContainer;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: <Color>[cs.primaryContainer, cs.secondaryContainer],
+          colors: gradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: cs.primary.withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Solde de $month',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: cs.onPrimaryContainer.withValues(alpha: 0.8),
+            'Solde de $month'.toUpperCase(),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: onGradient,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
             ),
           ),
           const SizedBox(height: 6),
@@ -152,7 +278,8 @@ class _BalanceCard extends StatelessWidget {
             AppDateFormat.currencyEur(balance),
             style: theme.textTheme.displaySmall?.copyWith(
               fontWeight: FontWeight.w800,
-              color: cs.onPrimaryContainer,
+              color: onGradient,
+              height: 1.1,
             ),
           ),
           const SizedBox(height: 20),
@@ -163,8 +290,8 @@ class _BalanceCard extends StatelessWidget {
                   icon: Icons.trending_up_rounded,
                   label: 'Revenus',
                   amount: income,
-                  color: Colors.green.shade700,
-                  onColor: cs.onPrimaryContainer,
+                  accent: const Color(0xFF34C759),
+                  onColor: onGradient,
                 ),
               ),
               const SizedBox(width: 12),
@@ -173,8 +300,37 @@ class _BalanceCard extends StatelessWidget {
                   icon: Icons.trending_down_rounded,
                   label: 'Dépenses',
                   amount: expense,
-                  color: Colors.red.shade700,
-                  onColor: cs.onPrimaryContainer,
+                  accent: const Color(0xFFFF453A),
+                  onColor: onGradient,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onPreview,
+                  icon: const Icon(Icons.picture_as_pdf_rounded),
+                  label: const Text('Aperçu'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: onGradient,
+                    side: BorderSide(color: onGradient, width: 1.5),
+                    backgroundColor: Colors.white.withValues(alpha: 0.10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onDownload,
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text('Télécharger'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: onGradient,
+                    foregroundColor: cs.primary,
+                  ),
                 ),
               ),
             ],
@@ -190,14 +346,14 @@ class _MoneyMini extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.amount,
-    required this.color,
+    required this.accent,
     required this.onColor,
   });
 
   final IconData icon;
   final String label;
   final double amount;
-  final Color color;
+  final Color accent;
   final Color onColor;
 
   @override
@@ -206,14 +362,17 @@ class _MoneyMini extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.35),
+        color: Colors.black.withValues(alpha: 0.20),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+        ),
       ),
       child: Row(
         children: <Widget>[
           CircleAvatar(
             radius: 16,
-            backgroundColor: color,
+            backgroundColor: accent,
             child: Icon(icon, size: 18, color: Colors.white),
           ),
           const SizedBox(width: 10),
@@ -223,7 +382,10 @@ class _MoneyMini extends StatelessWidget {
               children: <Widget>[
                 Text(
                   label,
-                  style: theme.textTheme.labelSmall?.copyWith(color: onColor),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: onColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   AppDateFormat.currencyEur(amount),
