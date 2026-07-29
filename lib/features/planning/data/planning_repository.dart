@@ -119,6 +119,18 @@ class PlanningNotifier extends Notifier<List<Appointment>> {
   void add(Appointment appointment) {
     state = <Appointment>[...state, appointment];
   }
+
+  void update(Appointment appointment) {
+    state = <Appointment>[
+      for (final Appointment a in state)
+        if (a.id == appointment.id) appointment else a,
+    ];
+  }
+
+  void delete(String id) {
+    state =
+        state.where((Appointment a) => a.id != id).toList(growable: false);
+  }
 }
 
 final NotifierProvider<PlanningNotifier, List<Appointment>> planningProvider =

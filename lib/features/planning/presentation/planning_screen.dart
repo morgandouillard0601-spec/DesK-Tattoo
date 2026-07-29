@@ -158,7 +158,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                 itemBuilder: (BuildContext context, int index) {
                   return AppointmentCard(
                     appointment: appointments[index],
-                    onTap: () => _showAppointmentSheet(appointments[index]),
+                    onTap: () => _editAppointment(appointments[index]),
                   );
                 },
               ),
@@ -218,69 +218,27 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
     }
   }
 
-  void _showAppointmentSheet(Appointment a) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (BuildContext ctx) {
-        final ThemeData theme = Theme.of(ctx);
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  a.title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  a.clientName,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _DetailRow(
-                  icon: Icons.calendar_today_rounded,
-                  label: AppDateFormat.dayLong(a.start),
-                ),
-                _DetailRow(
-                  icon: Icons.schedule_rounded,
-                  label:
-                      '${AppDateFormat.hourMinute(a.start)} – ${AppDateFormat.hourMinute(a.end)}  ·  ${AppDateFormat.duration(a.duration)}',
-                ),
-                if (a.price > 0)
-                  _DetailRow(
-                    icon: Icons.euro_rounded,
-                    label: AppDateFormat.currencyEur(a.price),
-                  ),
-                _DetailRow(
-                  icon: Icons.flag_rounded,
-                  label: a.status.label,
-                ),
-                if (a.notes != null) ...<Widget>[
-                  const SizedBox(height: 12),
-                  Text(
-                    'Notes',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(a.notes!, style: theme.textTheme.bodyMedium),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
+  Future<void> _editAppointment(Appointment a) async {
+    final Appointment? saved = await showAppointmentFormSheet(
+      context,
+      initial: a,
     );
+    if (!mounted) return;
+    if (saved != null) {
+      // Follow the RDV if its date changed.
+      final DateTime newDay = DateTime(
+        saved.start.year,
+        saved.start.month,
+        saved.start.day,
+      );
+      setState(() {
+        _selectedDay = newDay;
+        _stickToToday = newDay == ParisClock.today();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('RDV mis à jour · ${saved.clientName}')),
+      );
+    }
   }
 }
 
@@ -371,24 +329,3 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: <Widget>[
-          Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 10),
-          Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-        ],
-      ),
-    );
-  }
-}

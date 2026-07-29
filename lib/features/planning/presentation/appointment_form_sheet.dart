@@ -13,6 +13,7 @@ import '../domain/appointment.dart';
 Future<Appointment?> showAppointmentFormSheet(
   BuildContext context, {
   DateTime? initialDay,
+  Appointment? initial,
 }) {
   return showModalBottomSheet<Appointment>(
     context: context,
@@ -22,14 +23,18 @@ Future<Appointment?> showAppointmentFormSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (_) => AppointmentFormSheet(initialDay: initialDay),
+    builder: (_) => AppointmentFormSheet(
+      initialDay: initialDay,
+      initial: initial,
+    ),
   );
 }
 
 class AppointmentFormSheet extends ConsumerStatefulWidget {
-  const AppointmentFormSheet({this.initialDay, super.key});
+  const AppointmentFormSheet({this.initialDay, this.initial, super.key});
 
   final DateTime? initialDay;
+  final Appointment? initial;
 
   @override
   ConsumerState<AppointmentFormSheet> createState() =>
@@ -38,15 +43,17 @@ class AppointmentFormSheet extends ConsumerStatefulWidget {
 
 class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _title = TextEditingController();
-  final TextEditingController _price = TextEditingController();
-  final TextEditingController _notes = TextEditingController();
+  late final TextEditingController _title;
+  late final TextEditingController _price;
+  late final TextEditingController _notes;
 
   Client? _client;
   late DateTime _date;
-  TimeOfDay _time = const TimeOfDay(hour: 10, minute: 0);
-  Duration _duration = const Duration(hours: 1);
-  AppointmentStatus _status = AppointmentStatus.scheduled;
+  late TimeOfDay _time;
+  late Duration _duration;
+  late AppointmentStatus _status;
+
+  bool get _isEdit => widget.initial != null;
 
   static const List<Duration> _durations = <Duration>[
     Duration(minutes: 15),
@@ -62,8 +69,36 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
   @override
   void initState() {
     super.initState();
-    final DateTime now = DateTime.now();
-    _date = widget.initialDay ?? DateTime(now.year, now.month, now.day);
+    final Appointment? i = widget.initial;
+
+    _title = TextEditingController(text: i?.title ?? '');
+    _price = TextEditingController(
+      text: i != null && i.price != 0 ? i.price.toString() : '',
+    );
+    _notes = TextEditingController(text: i?.notes ?? '');
+
+    if (i != null) {
+      _date = DateTime(i.start.year, i.start.month, i.start.day);
+      _time = TimeOfDay(hour: i.start.hour, minute: i.start.minute);
+      _duration = i.duration;
+      _status = i.status;
+      _client = ref.read(clientsProvider.notifier).getById(i.clientId);
+      // Fallback stub if the client was deleted but the appointment remains.
+      _client ??= Client(
+        id: i.clientId,
+        firstName: i.clientName.split(' ').first,
+        lastName: i.clientName.split(' ').skip(1).join(' '),
+        phone: '',
+        email: '',
+        createdAt: DateTime.now(),
+      );
+    } else {
+      final DateTime now = DateTime.now();
+      _date = widget.initialDay ?? DateTime(now.year, now.month, now.day);
+      _time = const TimeOfDay(hour: 10, minute: 0);
+      _duration = const Duration(hours: 1);
+      _status = AppointmentStatus.scheduled;
+    }
   }
 
   @override
@@ -128,20 +163,69 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
     final double price =
         double.tryParse(_price.text.replaceAll(',', '.')) ?? 0;
 
-    final Appointment appointment = Appointment(
-      id: generateId('a'),
-      clientId: _client!.id,
-      clientName: _client!.fullName,
-      title: _title.text.trim(),
-      start: start,
-      duration: _duration,
-      price: price,
-      status: _status,
-      notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+    final PlanningNotifier notifier = ref.read(planningProvider.notifier);
+
+    if (_isEdit) {
+      final Appointment updated = Appointment(
+        id: widget.initial!.id,
+        clientId: _client!.id,
+        clientName: _client!.fullName,
+        title: _title.text.trim(),
+        start: start,
+        duration: _duration,
+        price: price,
+        status: _status,
+        notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+      );
+      notifier.update(updated);
+      Navigator.of(context).pop(updated);
+    } else {
+      final Appointment created = Appointment(
+        id: generateId('a'),
+        clientId: _client!.id,
+        clientName: _client!.fullName,
+        title: _title.text.trim(),
+        start: start,
+        duration: _duration,
+        price: price,
+        status: _status,
+        notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+      );
+      notifier.add(created);
+      Navigator.of(context).pop(created);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('Supprimer ce rendez-vous ?'),
+        content: Text(
+          '« ${widget.initial!.title} » avec ${widget.initial!.clientName} '
+          'sera retiré du planning.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.errorContainer,
+              foregroundColor: Theme.of(ctx).colorScheme.onErrorContainer,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
     );
 
-    ref.read(planningProvider.notifier).add(appointment);
-    Navigator.of(context).pop(appointment);
+    if (ok == true && mounted) {
+      ref.read(planningProvider.notifier).delete(widget.initial!.id);
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -149,7 +233,8 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
     final ThemeData theme = Theme.of(context);
 
     return FormSheetScaffold(
-      title: 'Nouveau rendez-vous',
+      title: _isEdit ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous',
+      saveLabel: _isEdit ? 'Enregistrer' : 'Ajouter',
       onSave: _save,
       child: Form(
         key: _formKey,
@@ -258,6 +343,20 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
                 alignLabelWithHint: true,
               ),
             ),
+            if (_isEdit) ...<Widget>[
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _confirmDelete,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                  side: BorderSide(color: theme.colorScheme.error),
+                ),
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Supprimer ce rendez-vous'),
+              ),
+            ],
             const SizedBox(height: 8),
           ],
         ),
