@@ -14,6 +14,7 @@ Future<Appointment?> showAppointmentFormSheet(
   BuildContext context, {
   DateTime? initialDay,
   Appointment? initial,
+  Client? initialClient,
 }) {
   return showModalBottomSheet<Appointment>(
     context: context,
@@ -26,15 +27,22 @@ Future<Appointment?> showAppointmentFormSheet(
     builder: (_) => AppointmentFormSheet(
       initialDay: initialDay,
       initial: initial,
+      initialClient: initialClient,
     ),
   );
 }
 
 class AppointmentFormSheet extends ConsumerStatefulWidget {
-  const AppointmentFormSheet({this.initialDay, this.initial, super.key});
+  const AppointmentFormSheet({
+    this.initialDay,
+    this.initial,
+    this.initialClient,
+    super.key,
+  });
 
   final DateTime? initialDay;
   final Appointment? initial;
+  final Client? initialClient;
 
   @override
   ConsumerState<AppointmentFormSheet> createState() =>
@@ -98,8 +106,12 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
       _time = const TimeOfDay(hour: 10, minute: 0);
       _duration = const Duration(hours: 1);
       _status = AppointmentStatus.scheduled;
+      _client = widget.initialClient;
     }
   }
+
+  bool get _clientLocked =>
+      !_isEdit && widget.initialClient != null;
 
   @override
   void dispose() {
@@ -246,12 +258,14 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
             _PickerTile(
               icon: Icons.person_rounded,
               label: _client?.fullName ?? 'Choisir un client',
-              onTap: _pickClient,
-              trailing: TextButton.icon(
-                onPressed: _createClient,
-                icon: const Icon(Icons.person_add_rounded, size: 18),
-                label: const Text('Nouveau'),
-              ),
+              onTap: _clientLocked ? null : _pickClient,
+              trailing: _clientLocked
+                  ? null
+                  : TextButton.icon(
+                      onPressed: _createClient,
+                      icon: const Icon(Icons.person_add_rounded, size: 18),
+                      label: const Text('Nouveau'),
+                    ),
             ),
             const SizedBox(height: 16),
             const _SectionLabel(label: 'Prestation'),
@@ -393,7 +407,7 @@ class _PickerTile extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Widget? trailing;
 
   @override

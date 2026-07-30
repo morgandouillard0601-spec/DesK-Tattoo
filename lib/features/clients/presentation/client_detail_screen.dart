@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../shared/utils/date_format.dart';
 import '../../planning/data/planning_repository.dart';
 import '../../planning/domain/appointment.dart';
+import '../../planning/presentation/appointment_form_sheet.dart';
 import '../../planning/presentation/widgets/appointment_card.dart';
 import '../data/clients_repository.dart';
 import '../domain/client.dart';
@@ -14,6 +15,17 @@ class ClientDetailScreen extends ConsumerWidget {
   const ClientDetailScreen({required this.clientId, super.key});
 
   final String clientId;
+
+  Future<void> _addAppointment(BuildContext context, Client client) async {
+    await showAppointmentFormSheet(context, initialClient: client);
+  }
+
+  Future<void> _editAppointment(
+    BuildContext context,
+    Appointment appointment,
+  ) async {
+    await showAppointmentFormSheet(context, initial: appointment);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -56,8 +68,13 @@ class ClientDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _addAppointment(context, client),
+        icon: const Icon(Icons.event_available_rounded),
+        label: const Text('Nouveau RDV'),
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: <Widget>[
           Center(
             child: Column(
@@ -142,29 +159,53 @@ class ClientDetailScreen extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 24),
-          Text(
-            'Historique (${history.length})',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Historique (${history.length})',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => _addAppointment(context, client),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Ajouter'),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           if (history.isEmpty)
             Padding(
               padding: const EdgeInsets.all(24),
-              child: Text(
-                'Aucun rendez-vous enregistré.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              child: Column(
+                children: <Widget>[
+                  Text(
+                    'Aucun rendez-vous enregistré.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.tonalIcon(
+                    onPressed: () => _addAppointment(context, client),
+                    icon: const Icon(Icons.event_available_rounded),
+                    label: const Text('Planifier un RDV'),
+                  ),
+                ],
               ),
             )
           else
             ...history.map(
               (Appointment a) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: AppointmentCard(appointment: a),
+                child: AppointmentCard(
+                  appointment: a,
+                  onTap: () => _editAppointment(context, a),
+                ),
               ),
             ),
         ],
