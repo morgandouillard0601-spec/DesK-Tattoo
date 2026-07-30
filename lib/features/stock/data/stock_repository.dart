@@ -90,6 +90,7 @@ class StockNotifier extends Notifier<List<StockItem>> {
       name: 'Aiguilles Magnum 13',
       category: StockCategory.needles,
       subCategory: 'Magnum',
+      brand: 'Kwadron',
       quantity: 50,
       threshold: 30,
       unit: 'pcs',
@@ -129,6 +130,22 @@ class StockNotifier extends Notifier<List<StockItem>> {
           i.subCategory!.trim().isNotEmpty &&
           !defaults.contains(i.subCategory)) {
         customs.add(i.subCategory!);
+      }
+    }
+    return <String>[...defaults, ...customs];
+  }
+
+  /// Default brands + custom brands already used for the category.
+  List<String> brandsFor(StockCategory category) {
+    final List<String> defaults = category.defaultBrands;
+    if (defaults.isEmpty) return const <String>[];
+    final Set<String> customs = <String>{};
+    for (final StockItem i in state) {
+      if (i.category == category &&
+          i.brand != null &&
+          i.brand!.trim().isNotEmpty &&
+          !defaults.contains(i.brand)) {
+        customs.add(i.brand!);
       }
     }
     return <String>[...defaults, ...customs];

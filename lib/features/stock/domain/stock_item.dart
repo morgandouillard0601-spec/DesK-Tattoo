@@ -83,6 +83,23 @@ extension StockCategoryX on StockCategory {
           ],
         StockCategory.other => const <String>[],
       };
+
+  /// Suggested brands for categories that use them (needles).
+  List<String> get defaultBrands => switch (this) {
+        StockCategory.needles => const <String>[
+            'Kwadron',
+            'Cheyenne',
+            'Bishop',
+            'Emalla',
+            'Stigma',
+            'Mast',
+            'Dragonhawk',
+            'EZ',
+            'Peak',
+            'Critical',
+          ],
+        _ => const <String>[],
+      };
 }
 
 class StockItem {
@@ -95,6 +112,7 @@ class StockItem {
     required this.unit,
     required this.unitPrice,
     this.subCategory,
+    this.brand,
     this.lastRestockAt,
   });
 
@@ -102,6 +120,7 @@ class StockItem {
   final String name;
   final StockCategory category;
   final String? subCategory;
+  final String? brand;
   final int quantity;
   final int threshold;
   final String unit;

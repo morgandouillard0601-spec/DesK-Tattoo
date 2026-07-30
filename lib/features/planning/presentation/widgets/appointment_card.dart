@@ -38,7 +38,7 @@ class AppointmentCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      AppDateFormat.duration(appointment.duration),
+                      AppDateFormat.hourMinute(appointment.end),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

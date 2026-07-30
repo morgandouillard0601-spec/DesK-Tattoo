@@ -17,6 +17,8 @@ class StockScreen extends ConsumerStatefulWidget {
 class _StockScreenState extends ConsumerState<StockScreen> {
   String _query = '';
   bool _onlyLowStock = false;
+  StockCategory? _categoryFilter;
+  String? _subCategoryFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -25,18 +27,40 @@ class _StockScreenState extends ConsumerState<StockScreen> {
 
     List<StockItem> items = _query.trim().isEmpty
         ? List<StockItem>.from(all)
-        : all
-            .where((StockItem i) =>
-                i.name.toLowerCase().contains(_query.toLowerCase()))
-            .toList();
+        : all.where((StockItem i) {
+            final String q = _query.toLowerCase();
+            return i.name.toLowerCase().contains(q) ||
+                (i.brand?.toLowerCase().contains(q) ?? false) ||
+                (i.subCategory?.toLowerCase().contains(q) ?? false);
+          }).toList();
     if (_onlyLowStock) {
       items = items.where((StockItem i) => i.isLow).toList();
+    }
+    if (_categoryFilter != null) {
+      items =
+          items.where((StockItem i) => i.category == _categoryFilter).toList();
+    }
+    if (_subCategoryFilter != null) {
+      items = items
+          .where((StockItem i) => i.subCategory == _subCategoryFilter)
+          .toList();
     }
 
     final List<StockItem> lowItems =
         all.where((StockItem i) => i.isLow).toList();
     final double totalValue =
         all.fold<double>(0, (double sum, StockItem i) => sum + i.totalValue);
+
+    final List<String> subCategoryOptions = <String>[
+      if (_categoryFilter != null)
+        ...{
+          for (final StockItem i in all)
+            if (i.category == _categoryFilter &&
+                i.subCategory != null &&
+                i.subCategory!.trim().isNotEmpty)
+              i.subCategory!,
+        },
+    ]..sort();
 
     return Scaffold(
       appBar: AppBar(
@@ -85,23 +109,79 @@ class _StockScreenState extends ConsumerState<StockScreen> {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: <Widget>[
                     FilterChip(
-                      label: const Text('Stock bas uniquement'),
+                      label: const Text('Stock bas'),
                       selected: _onlyLowStock,
                       onSelected: (bool v) =>
                           setState(() => _onlyLowStock = v),
                       avatar: const Icon(Icons.warning_amber_rounded, size: 18),
                     ),
+                    const SizedBox(width: 8),
+                    ...StockCategory.values.map((StockCategory c) {
+                      final bool selected = _categoryFilter == c;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(c.label),
+                          avatar: Icon(c.icon, size: 18),
+                          selected: selected,
+                          onSelected: (bool v) {
+                            setState(() {
+                              _categoryFilter = v ? c : null;
+                              _subCategoryFilter = null;
+                            });
+                          },
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
             ),
           ),
+          if (subCategoryOptions.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: <Widget>[
+                      Text(
+                        'Sous-catégorie',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ...subCategoryOptions.map((String sub) {
+                        final bool selected = _subCategoryFilter == sub;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Text(sub),
+                            selected: selected,
+                            onSelected: (bool v) {
+                              setState(() {
+                                _subCategoryFilter = v ? sub : null;
+                              });
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            const SliverToBoxAdapter(child: SizedBox(height: 4)),
           if (items.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
@@ -274,6 +354,31 @@ class _StockItemTile extends StatelessWidget {
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      if (item.brand != null) ...<Widget>[
+                        Text(
+                          '·',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            item.brand!,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                       if (item.subCategory != null) ...<Widget>[
                         Text(
                           '·',

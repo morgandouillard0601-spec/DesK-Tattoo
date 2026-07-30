@@ -39,9 +39,11 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
   late final TextEditingController _unit;
   late final TextEditingController _unitPrice;
   final TextEditingController _customSub = TextEditingController();
+  final TextEditingController _customBrand = TextEditingController();
 
   late StockCategory _category;
   String? _subCategory;
+  String? _brand;
 
   bool get _isEdit => widget.initial != null;
 
@@ -60,6 +62,7 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
     );
     _category = i?.category ?? StockCategory.cartridges;
     _subCategory = i?.subCategory;
+    _brand = i?.brand;
   }
 
   @override
@@ -70,6 +73,7 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
     _unit.dispose();
     _unitPrice.dispose();
     _customSub.dispose();
+    _customBrand.dispose();
     super.dispose();
   }
 
@@ -79,6 +83,9 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
     final String? sub = _customSub.text.trim().isNotEmpty
         ? _customSub.text.trim()
         : _subCategory;
+    final String? brand = _customBrand.text.trim().isNotEmpty
+        ? _customBrand.text.trim()
+        : _brand;
 
     final StockNotifier notifier = ref.read(stockProvider.notifier);
 
@@ -88,6 +95,7 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
         name: _name.text.trim(),
         category: _category,
         subCategory: sub,
+        brand: brand,
         quantity: int.tryParse(_quantity.text) ?? 0,
         threshold: int.tryParse(_threshold.text) ?? 0,
         unit: _unit.text.trim(),
@@ -102,6 +110,7 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
         name: _name.text.trim(),
         category: _category,
         subCategory: sub,
+        brand: brand,
         quantity: int.tryParse(_quantity.text) ?? 0,
         threshold: int.tryParse(_threshold.text) ?? 0,
         unit: _unit.text.trim(),
@@ -149,6 +158,11 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
     final ThemeData theme = Theme.of(context);
     final List<String> suggestions =
         ref.read(stockProvider.notifier).subCategoriesFor(_category);
+    final List<String> brandSuggestions =
+        ref.read(stockProvider.notifier).brandsFor(_category);
+    final bool showBrand = brandSuggestions.isNotEmpty ||
+        _category.defaultBrands.isNotEmpty ||
+        _category == StockCategory.needles;
 
     return FormSheetScaffold(
       title: _isEdit ? 'Modifier l\'article' : 'Nouvel article',
@@ -185,11 +199,64 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
                   onSelected: (_) => setState(() {
                     _category = c;
                     _subCategory = null;
+                    _brand = null;
                     _customSub.clear();
+                    _customBrand.clear();
                   }),
                 );
               }).toList(),
             ),
+            if (showBrand) ...<Widget>[
+              const SizedBox(height: 16),
+              Row(
+                children: <Widget>[
+                  const _SectionLabel('Marque'),
+                  const SizedBox(width: 6),
+                  Text(
+                    '(optionnel)',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (brandSuggestions.isNotEmpty) ...<Widget>[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: brandSuggestions.map((String b) {
+                    final bool selected = _brand == b;
+                    return ChoiceChip(
+                      label: Text(b),
+                      selected: selected,
+                      onSelected: (_) => setState(() {
+                        _brand = selected ? null : b;
+                        _customBrand.clear();
+                      }),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+              ],
+              TextFormField(
+                controller: _customBrand,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: 'Autre marque',
+                  hintText: _brand == null
+                      ? 'Saisis une marque personnalisée'
+                      : 'Remplace : $_brand',
+                  prefixIcon: const Icon(Icons.storefront_rounded),
+                  isDense: true,
+                ),
+                onChanged: (String v) {
+                  if (v.trim().isNotEmpty && _brand != null) {
+                    setState(() => _brand = null);
+                  }
+                },
+              ),
+            ],
             const SizedBox(height: 16),
             Row(
               children: <Widget>[
