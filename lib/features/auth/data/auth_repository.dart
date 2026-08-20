@@ -39,22 +39,12 @@ class AuthRepository {
       throw AuthException('Email ou mot de passe invalide (6 caractères min.)');
     }
 
-    final bool exists = await hasLocalAccount();
-    if (exists) {
-      final String? existing = await _storage.readAuthEmail();
-      if (existing != null && existing != normalized) {
-        throw AuthException(
-          'Un compte local existe déjà ($existing). Connecte-toi ou déconnecte-toi.',
-        );
-      }
-    }
-
+    // Local single-device account: creating a new one replaces previous credentials.
     await _storage.writeAuthEmail(normalized);
     await _storage.writeAuthPassword(password);
     await _storage.writeAuthToken('local_$normalized');
     await _storage.writePendingRemoteSync(true);
 
-    // Attempt remote sync now; if DB is not ready yet, flag stays pending.
     await syncPendingToRemote();
 
     return AuthUser(email: normalized);
@@ -82,6 +72,28 @@ class AuthRepository {
 
   Future<void> logout() async {
     await _storage.clearSession();
+  }
+
+  /// Garantit le compte local historique (profil studio déjà inscrit).
+  Future<void> ensureLegacyAccount({
+    required String email,
+    required String password,
+  }) async {
+    final String normalized = email.trim().toLowerCase();
+    final String? existingEmail = await _storage.readAuthEmail();
+    final String? existingPassword = await _storage.readAuthPassword();
+
+    // Ne remplace un autre compte que s’il n’y a pas encore d’identifiants.
+    if (existingEmail != null &&
+        existingEmail.isNotEmpty &&
+        existingEmail != normalized) {
+      return;
+    }
+
+    if (existingEmail != normalized || existingPassword != password) {
+      await _storage.writeAuthEmail(normalized);
+      await _storage.writeAuthPassword(password);
+    }
   }
 
   /// Pushes pending local credentials to the remote DB when available.
