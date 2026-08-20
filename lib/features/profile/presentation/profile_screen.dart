@@ -5,11 +5,13 @@ import '../../../core/theme/theme_controller.dart';
 import '../../../shared/utils/date_format.dart';
 import '../../accounting/data/accounting_repository.dart';
 import '../../accounting/domain/transaction.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../../clients/data/clients_repository.dart';
 import '../../planning/data/planning_repository.dart';
 import '../../planning/domain/appointment.dart';
 import '../data/artist_repository.dart';
 import '../domain/artist.dart';
+import 'widgets/app_store_qr_card.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -155,6 +157,15 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           Text(
+            'Partager l\'app',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const AppStoreQrCard(),
+          const SizedBox(height: 24),
+          Text(
             'Préférences',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
@@ -200,10 +211,8 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Déconnexion — bientôt')),
-              );
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
             },
             icon: const Icon(Icons.logout_rounded),
             label: const Text('Se déconnecter'),

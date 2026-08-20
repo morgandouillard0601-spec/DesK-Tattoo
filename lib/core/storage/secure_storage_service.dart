@@ -8,6 +8,9 @@ class SecureStorageService {
 
   static const String _authTokenKey = 'auth_token';
   static const String _refreshTokenKey = 'refresh_token';
+  static const String _authEmailKey = 'auth_email';
+  static const String _authPasswordKey = 'auth_password';
+  static const String _pendingRemoteSyncKey = 'auth_pending_remote_sync';
 
   Future<String?> readAuthToken() => _storage.read(key: _authTokenKey);
 
@@ -20,6 +23,38 @@ class SecureStorageService {
 
   Future<void> writeRefreshToken(String token) =>
       _storage.write(key: _refreshTokenKey, value: token);
+
+  Future<String?> readAuthEmail() => _storage.read(key: _authEmailKey);
+
+  Future<void> writeAuthEmail(String email) =>
+      _storage.write(key: _authEmailKey, value: email);
+
+  Future<String?> readAuthPassword() => _storage.read(key: _authPasswordKey);
+
+  Future<void> writeAuthPassword(String password) =>
+      _storage.write(key: _authPasswordKey, value: password);
+
+  Future<bool> readPendingRemoteSync() async {
+    final String? value = await _storage.read(key: _pendingRemoteSyncKey);
+    return value == '1';
+  }
+
+  Future<void> writePendingRemoteSync(bool pending) => _storage.write(
+        key: _pendingRemoteSyncKey,
+        value: pending ? '1' : '0',
+      );
+
+  Future<void> clearSession() async {
+    await deleteAuthToken();
+    await _storage.delete(key: _refreshTokenKey);
+  }
+
+  Future<void> clearCredentials() async {
+    await clearSession();
+    await _storage.delete(key: _authEmailKey);
+    await _storage.delete(key: _authPasswordKey);
+    await _storage.delete(key: _pendingRemoteSyncKey);
+  }
 
   Future<void> clearAll() => _storage.deleteAll();
 }

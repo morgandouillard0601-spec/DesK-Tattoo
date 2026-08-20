@@ -8,6 +8,9 @@ class AppConfig {
     required this.env,
     required this.apiBaseUrl,
     required this.apiTimeout,
+    required this.appStoreUrl,
+    required this.playStoreUrl,
+    required this.appDownloadUrl,
   });
 
   factory AppConfig.fromEnv() {
@@ -28,6 +31,13 @@ class AppConfig {
       apiBaseUrl:
           dotenv.maybeGet('API_BASE_URL') ?? 'https://api.example.com',
       apiTimeout: Duration(milliseconds: timeoutMs),
+      appStoreUrl: dotenv.maybeGet('APP_STORE_URL') ??
+          'https://apps.apple.com/app/idXXXXXXXXX',
+      playStoreUrl: dotenv.maybeGet('PLAY_STORE_URL') ??
+          'https://play.google.com/store/apps/details?id=com.desktattoo.desk_tattoo',
+      // Unique public link encoded in the QR code.
+      appDownloadUrl: dotenv.maybeGet('APP_DOWNLOAD_URL') ??
+          'https://desktattoo.app/get/dt-get-7f3a9c2e',
     );
   }
 
@@ -35,7 +45,17 @@ class AppConfig {
   final AppEnv env;
   final String apiBaseUrl;
   final Duration apiTimeout;
+  final String appStoreUrl;
+  final String playStoreUrl;
+
+  /// Unique smart-link URL (QR target). Detects iOS/Android and redirects
+  /// to [appStoreUrl] / [playStoreUrl] once those stores are live.
+  final String appDownloadUrl;
 
   bool get isDev => env == AppEnv.dev;
   bool get isProd => env == AppEnv.prod;
+
+  bool get storesConfigured =>
+      !appStoreUrl.contains('XXXXXXXXX') &&
+      !playStoreUrl.contains('idXXXXXXXX');
 }

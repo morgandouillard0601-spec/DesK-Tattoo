@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/accounting/presentation/accounting_screen.dart';
+import '../../features/auth/presentation/auth_controller.dart';
+import '../../features/auth/presentation/login_screen.dart';
 import '../../features/clients/presentation/client_detail_screen.dart';
 import '../../features/clients/presentation/clients_screen.dart';
 import '../../features/planning/presentation/planning_screen.dart';
@@ -15,6 +17,7 @@ class AppRoutes {
   const AppRoutes._();
 
   static const String splash = '/';
+  static const String login = '/login';
   static const String planning = '/planning';
   static const String stock = '/stock';
   static const String clients = '/clients';
@@ -26,15 +29,43 @@ final GlobalKey<NavigatorState> _rootNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'root');
 
 final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
+  final AuthRouterRefresh refresh = ref.watch(authRouterRefreshProvider);
+
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
+    refreshListenable: refresh,
+    redirect: (BuildContext context, GoRouterState state) {
+      final AuthState auth = ref.read(authProvider);
+      final String loc = state.matchedLocation;
+      final bool onSplash = loc == AppRoutes.splash;
+      final bool onLogin = loc == AppRoutes.login;
+
+      if (auth.status == AuthStatus.unknown) {
+        return onSplash ? null : AppRoutes.splash;
+      }
+
+      if (!auth.isAuthenticated) {
+        return onLogin ? null : AppRoutes.login;
+      }
+
+      if (onLogin || onSplash) {
+        return AppRoutes.planning;
+      }
+
+      return null;
+    },
     routes: <RouteBase>[
       GoRoute(
         path: AppRoutes.splash,
         name: 'splash',
         builder: (_, _) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.login,
+        name: 'login',
+        builder: (_, _) => const LoginScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (

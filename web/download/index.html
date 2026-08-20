@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DesK Tattoo — Télécharger</title>
+  <meta name="description" content="Télécharge DesK Tattoo sur l’App Store ou le Play Store." />
+  <!--
+    Lien unique du QR code DesK Tattoo.
+    Remplace APP_STORE_URL / PLAY_STORE_URL dès que l’app est publiée.
+    Héberge cette page (ex. desktattoo.app/get) et mets la même URL dans APP_DOWNLOAD_URL.
+  -->
+  <script>
+    // Identifiant unique de ce lien de téléchargement (QR).
+    window.DESK_DOWNLOAD = {
+      id: "dt-get-7f3a9c2e",
+      appStoreUrl: "https://apps.apple.com/app/idXXXXXXXXX",
+      playStoreUrl: "https://play.google.com/store/apps/details?id=com.desktattoo.desk_tattoo",
+      fallbackUrl: "https://desktattoo.app"
+    };
+  </script>
+  <style>
+    :root {
+      --bg: #141019;
+      --card: #2c2536;
+      --text: #f5f0fb;
+      --muted: #b5a8c4;
+      --accent: #9b6dd7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #3a2458 0%, var(--bg) 55%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+      border: 1px solid #4a3d5e;
+      border-radius: 24px;
+      padding: 28px 24px;
+      text-align: center;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.6rem; }
+    p { margin: 0 0 20px; color: var(--muted); line-height: 1.45; }
+    .btn {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: #fff;
+      background: var(--accent);
+    }
+    .btn.secondary {
+      background: transparent;
+      border: 1px solid #6a5a80;
+      color: var(--text);
+    }
+    .hint { font-size: 0.8rem; color: var(--muted); margin-top: 16px; }
+    .id { font-family: ui-monospace, monospace; font-size: 0.75rem; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="id" id="link-id"></div>
+    <h1>DesK Tattoo</h1>
+    <p id="status">Redirection vers la boutique de ton appareil…</p>
+    <a class="btn" id="btn-ios" href="#">Ouvrir l’App Store</a>
+    <a class="btn secondary" id="btn-android" href="#">Ouvrir le Play Store</a>
+    <p class="hint">
+      Une fois l’app publiée, ce lien unique envoie automatiquement
+      vers l’App Store (iPhone/iPad) ou le Play Store (Android).
+    </p>
+  </main>
+  <script>
+    (function () {
+      var cfg = window.DESK_DOWNLOAD;
+      document.getElementById("link-id").textContent = "Lien " + cfg.id;
+      document.getElementById("btn-ios").href = cfg.appStoreUrl;
+      document.getElementById("btn-android").href = cfg.playStoreUrl;
+
+      var ua = navigator.userAgent || navigator.vendor || "";
+      var isIOS = /iPad|iPhone|iPod/.test(ua) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      var isAndroid = /Android/i.test(ua);
+
+      var target = null;
+      if (isIOS) target = cfg.appStoreUrl;
+      else if (isAndroid) target = cfg.playStoreUrl;
+
+      // Placeholders still contain XXXXXXXXX / example ids → don't auto-bounce yet.
+      var ready =
+        target &&
+        target.indexOf("XXXXXXXXX") === -1 &&
+        target.indexOf("idXXXXXXXX") === -1;
+
+      if (ready && target) {
+        document.getElementById("status").textContent =
+          "Ouverture de la boutique…";
+        setTimeout(function () {
+          window.location.replace(target);
+        }, 400);
+      } else {
+        document.getElementById("status").textContent =
+          "Choisis ta boutique (liens à finaliser après publication).";
+      }
+    })();
+  </script>
+</body>
+</html>
