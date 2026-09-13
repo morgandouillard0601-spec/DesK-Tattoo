@@ -528,5 +528,4 @@ end $$;
 -- alter publication supabase_realtime add table public.clients;
 -- alter publication supabase_realtime add table public.transactions;
 
-
 -- >>> Ensuite exécuter: 06_onboarding_billing.sql (onboarding + Stripe + admin)

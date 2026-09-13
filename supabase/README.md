@@ -22,11 +22,13 @@ Fichiers à exécuter dans **Supabase → SQL Editor**.
 
 ## Edge Functions (Stripe)
 
+Voir aussi [`DEPLOY_CHECKLIST.md`](DEPLOY_CHECKLIST.md) et [`docs/DEPLOY_LIVE.md`](../docs/DEPLOY_LIVE.md).
+
 ```bash
-supabase secrets set STRIPE_SECRET_KEY=sk_test_...
+supabase secrets set STRIPE_SECRET_KEY=sk_live_...
 supabase secrets set STRIPE_PRICE_ID=price_...
 supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
-supabase secrets set SITE_URL=desktattoo://billing
+supabase secrets set SITE_URL=https://TON-PROJET.vercel.app
 
 supabase functions deploy create-checkout-session
 supabase functions deploy stripe-webhook --no-verify-jwt
