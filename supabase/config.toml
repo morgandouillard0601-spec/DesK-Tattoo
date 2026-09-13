@@ -1,0 +1,14 @@
+# Supabase local / deploy config (optional)
+project_id = "desktattoo"
+
+[api]
+enabled = true
+
+[functions.create-checkout-session]
+verify_jwt = true
+
+[functions.subscription-status]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../shared/utils/date_format.dart';
 import '../../accounting/data/accounting_repository.dart';
@@ -21,6 +23,7 @@ class ProfileScreen extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
     final Artist artist = ref.watch(artistProvider);
     final ThemeMode themeMode = ref.watch(themeModeProvider);
+    final AuthState auth = ref.watch(authProvider);
 
     final int clientsCount = ref.watch(clientsProvider).length;
     final List<Appointment> appointments = ref.watch(planningProvider);
@@ -134,6 +137,26 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.home_outlined),
+                  title: const Text('Adresse'),
+                  subtitle: Text(
+                    () {
+                      final String line = [
+                        if (artist.address.isNotEmpty) artist.address,
+                        if (artist.city.isNotEmpty) artist.city,
+                      ].join(', ');
+                      return line.isEmpty ? '—' : line;
+                    }(),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.badge_outlined),
+                  title: const Text('SIRET'),
+                  subtitle: Text(artist.siret.isEmpty ? '—' : artist.siret),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.email_rounded),
                   title: const Text('Email'),
                   subtitle: Text(artist.email),
@@ -155,6 +178,26 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
+          if (auth.isAdmin) ...<Widget>[
+            const SizedBox(height: 24),
+            Text(
+              'Administration',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              color: theme.colorScheme.surfaceContainerHigh,
+              child: ListTile(
+                leading: const Icon(Icons.folder_shared_rounded),
+                title: const Text('Dossiers studios'),
+                subtitle: const Text('Onboarding & abonnements'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.push(AppRoutes.adminStudios),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           Text(
             'Partager l\'app',

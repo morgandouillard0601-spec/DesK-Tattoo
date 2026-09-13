@@ -24,6 +24,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _lastName = TextEditingController();
   final TextEditingController _phone = TextEditingController();
   final TextEditingController _studio = TextEditingController();
+  final TextEditingController _address = TextEditingController();
+  final TextEditingController _city = TextEditingController();
+  final TextEditingController _siret = TextEditingController();
   final TextEditingController _experience = TextEditingController(text: '1');
   final TextEditingController _bio = TextEditingController();
   final TextEditingController _instagram = TextEditingController();
@@ -71,6 +74,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _lastName.dispose();
     _phone.dispose();
     _studio.dispose();
+    _address.dispose();
+    _city.dispose();
+    _siret.dispose();
     _experience.dispose();
     _bio.dispose();
     _instagram.dispose();
@@ -138,6 +144,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               lastName: _lastName.text,
               phone: _phone.text,
               studioName: _studio.text,
+              address: _address.text,
+              city: _city.text,
+              siret: _siret.text,
               specialties: _specialties.toList()..sort(),
               experienceYears: int.tryParse(_experience.text) ?? 0,
               bio: _bio.text,
@@ -406,8 +415,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String get _stepTitle => switch (_step) {
         0 => 'Étape 1/3 — Accès au compte',
-        1 => 'Étape 2/3 — Identité & studio',
-        _ => 'Étape 3/3 — Spécialités & détails',
+        1 => 'Étape 2/3 — Identité',
+        _ => 'Étape 3/3 — Salon & spécialités',
       };
 
   Widget _buildStep1() {
@@ -508,22 +517,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           TextFormField(
             controller: _phone,
             keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.next,
+            textInputAction: TextInputAction.done,
             decoration: const InputDecoration(
               labelText: 'Téléphone',
               hintText: '+33 6 …',
               prefixIcon: Icon(Icons.phone_outlined),
-            ),
-            validator: _required,
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: _studio,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: 'Nom du studio',
-              prefixIcon: Icon(Icons.storefront_outlined),
             ),
             validator: _required,
           ),
@@ -538,6 +536,59 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          TextFormField(
+            controller: _studio,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Nom du salon',
+              prefixIcon: Icon(Icons.storefront_outlined),
+            ),
+            validator: _required,
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _address,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Adresse',
+              prefixIcon: Icon(Icons.home_outlined),
+            ),
+            validator: _required,
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _city,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Ville',
+              prefixIcon: Icon(Icons.location_city_outlined),
+            ),
+            validator: _required,
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _siret,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'SIRET',
+              hintText: '14 chiffres',
+              prefixIcon: Icon(Icons.badge_outlined),
+            ),
+            validator: (String? v) {
+              final String digits =
+                  (v ?? '').replaceAll(RegExp(r'\s'), '');
+              if (digits.isEmpty) return 'Requis';
+              if (digits.length != 14 || int.tryParse(digits) == null) {
+                return 'SIRET invalide (14 chiffres)';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 14),
           TextFormField(
             controller: _experience,
             keyboardType: TextInputType.number,

@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/accounting/presentation/accounting_screen.dart';
+import '../../features/admin/presentation/admin_studios_screen.dart';
+import '../../features/admin/presentation/studio_dossier_screen.dart';
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/billing/presentation/paywall_screen.dart';
 import '../../features/clients/presentation/client_detail_screen.dart';
 import '../../features/clients/presentation/clients_screen.dart';
 import '../../features/planning/presentation/planning_screen.dart';
@@ -18,11 +21,14 @@ class AppRoutes {
 
   static const String splash = '/';
   static const String login = '/login';
+  static const String paywall = '/paywall';
   static const String planning = '/planning';
   static const String stock = '/stock';
   static const String clients = '/clients';
   static const String accounting = '/accounting';
   static const String profile = '/profile';
+  static const String adminStudios = '/admin/studios';
+  static const String adminStudioDetail = '/admin/studios/:id';
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
@@ -41,6 +47,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       final String loc = state.matchedLocation;
       final bool onSplash = loc == AppRoutes.splash;
       final bool onLogin = loc == AppRoutes.login;
+      final bool onPaywall = loc == AppRoutes.paywall;
+      final bool onAdmin = loc.startsWith('/admin');
 
       if (auth.status == AuthStatus.unknown) {
         return onSplash ? null : AppRoutes.splash;
@@ -50,8 +58,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         return onLogin ? null : AppRoutes.login;
       }
 
-      if (onLogin || onSplash) {
+      // Authenticated but not subscribed → paywall (legacy/admin exempt).
+      if (!auth.entitled) {
+        return onPaywall ? null : AppRoutes.paywall;
+      }
+
+      if (onLogin || onSplash || onPaywall) {
         return AppRoutes.planning;
+      }
+
+      if (onAdmin && !auth.isAdmin) {
+        return AppRoutes.profile;
       }
 
       return null;
@@ -66,6 +83,26 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: AppRoutes.login,
         name: 'login',
         builder: (_, _) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.paywall,
+        name: 'paywall',
+        builder: (_, _) => const PaywallScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminStudios,
+        name: 'admin-studios',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const AdminStudiosScreen(),
+        routes: <RouteBase>[
+          GoRoute(
+            path: ':id',
+            name: 'admin-studio-detail',
+            parentNavigatorKey: _rootNavigatorKey,
+            builder: (BuildContext context, GoRouterState state) =>
+                StudioDossierScreen(studioId: state.pathParameters['id']!),
+          ),
+        ],
       ),
       StatefulShellRoute.indexedStack(
         builder: (

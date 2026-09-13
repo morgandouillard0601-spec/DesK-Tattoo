@@ -11,6 +11,11 @@ class AppConfig {
     required this.appStoreUrl,
     required this.playStoreUrl,
     required this.appDownloadUrl,
+    required this.supabaseUrl,
+    required this.supabaseAnonKey,
+    required this.stripePublishableKey,
+    required this.stripeProductId,
+    required this.monthlyPriceLabel,
   });
 
   factory AppConfig.fromEnv() {
@@ -35,9 +40,14 @@ class AppConfig {
           'https://apps.apple.com/app/idXXXXXXXXX',
       playStoreUrl: dotenv.maybeGet('PLAY_STORE_URL') ??
           'https://play.google.com/store/apps/details?id=com.desktattoo.desk_tattoo',
-      // Unique public link encoded in the QR code.
       appDownloadUrl: dotenv.maybeGet('APP_DOWNLOAD_URL') ??
           'https://desktattoo.app/get/dt-get-7f3a9c2e',
+      supabaseUrl: dotenv.maybeGet('SUPABASE_URL') ?? '',
+      supabaseAnonKey: dotenv.maybeGet('SUPABASE_ANON_KEY') ?? '',
+      stripePublishableKey: dotenv.maybeGet('STRIPE_PUBLISHABLE_KEY') ?? '',
+      stripeProductId:
+          dotenv.maybeGet('STRIPE_PRODUCT_ID') ?? 'prod_VFctn7oeEEtvpK',
+      monthlyPriceLabel: dotenv.maybeGet('STRIPE_PRICE_LABEL') ?? '19,99 €',
     );
   }
 
@@ -47,10 +57,12 @@ class AppConfig {
   final Duration apiTimeout;
   final String appStoreUrl;
   final String playStoreUrl;
-
-  /// Unique smart-link URL (QR target). Detects iOS/Android and redirects
-  /// to [appStoreUrl] / [playStoreUrl] once those stores are live.
   final String appDownloadUrl;
+  final String supabaseUrl;
+  final String supabaseAnonKey;
+  final String stripePublishableKey;
+  final String stripeProductId;
+  final String monthlyPriceLabel;
 
   bool get isDev => env == AppEnv.dev;
   bool get isProd => env == AppEnv.prod;
@@ -58,4 +70,15 @@ class AppConfig {
   bool get storesConfigured =>
       !appStoreUrl.contains('XXXXXXXXX') &&
       !playStoreUrl.contains('idXXXXXXXX');
+
+  bool get supabaseConfigured {
+    if (!supabaseUrl.startsWith('https://')) return false;
+    if (supabaseUrl.contains('xxxx.supabase.co')) return false;
+    if (supabaseAnonKey.isEmpty) return false;
+    if (supabaseAnonKey == 'eyJ...' ||
+        supabaseAnonKey.startsWith('sb_publishable_...')) {
+      return false;
+    }
+    return true;
+  }
 }
