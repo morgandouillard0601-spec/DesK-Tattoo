@@ -1,9 +1,9 @@
-# Déploiement LIVE — DesK Tattoo (Stripe + Supabase + Vercel)
+# Déploiement LIVE — DesK Tattoo (Stripe + Supabase + Netlify)
 
 Objectif : paiements **réels** → l’argent arrive sur **ton compte Stripe**.
 
 > Ne colle jamais `sk_live_…` ni `whsec_…` dans le repo / Flutter / chat.  
-> Uniquement dans **Supabase Secrets** (et `pk_live_…` dans Vercel / `.env` local).
+> Uniquement dans **Supabase Secrets** (et `pk_live_…` dans Netlify / `.env` local).
 
 ---
 
@@ -53,8 +53,8 @@ cd /Users/user/Documents/DesK-Tattoo-xcode
 supabase secrets set STRIPE_SECRET_KEY=sk_live_XXXX
 supabase secrets set STRIPE_PRICE_ID=price_XXXX_LIVE
 supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_XXXX_LIVE
-# Après le 1er deploy Vercel, remplace par ton URL réelle :
-supabase secrets set SITE_URL=https://TON-PROJET.vercel.app
+# Après le 1er deploy Netlify, remplace par ton URL réelle :
+supabase secrets set SITE_URL=https://TON-SITE.netlify.app
 
 supabase functions deploy create-checkout-session
 supabase functions deploy subscription-status
@@ -75,7 +75,7 @@ STRIPE_PRICE_LABEL=19,99 €
 
 `sk_live_` **ne va pas** dans `.env`.
 
-## F. Push GitHub + Deploy Vercel
+## F. Push GitHub + Deploy Netlify
 
 ```bash
 cd /Users/user/Documents/DesK-Tattoo-xcode
@@ -83,8 +83,8 @@ git status
 # commit + push sur ton remote GitHub
 ```
 
-1. [vercel.com](https://vercel.com) → **Add New Project** → importe le repo
-2. Framework : **Other** (lit `vercel.json`)
+1. [app.netlify.com](https://app.netlify.com) → **Add new site** → **Import an existing project**
+2. Build command et publish directory sont lus depuis `netlify.toml`
 3. **Environment Variables** (Production) :
 
 | Name | Value |
@@ -98,15 +98,15 @@ git status
 | `APP_ENV` | `prod` |
 
 4. **Deploy** (build ~3–6 min)
-5. Copie l’URL `https://….vercel.app`
+5. Copie l’URL `https://….netlify.app`
 6. Mets à jour :
    ```bash
-   supabase secrets set SITE_URL=https://….vercel.app
+   supabase secrets set SITE_URL=https://….netlify.app
    ```
 
 ## G. Test de bout en bout (argent réel)
 
-1. Ouvre l’URL Vercel
+1. Ouvre l’URL Netlify
 2. Crée un vrai compte studio (onboarding)
 3. Paywall → **S’abonner** → paie avec une **vraie carte**
 4. Retour `/paywall?checkout=success` → accès dashboard
@@ -121,6 +121,6 @@ git status
 - [ ] Webhook Live + `whsec_…` Live
 - [ ] Secrets Supabase à jour (Live)
 - [ ] Functions redéployées
-- [ ] Vercel env vars Live + deploy OK
-- [ ] `SITE_URL` = URL Vercel
+- [ ] Netlify env vars Live + deploy OK
+- [ ] `SITE_URL` = URL Netlify
 - [ ] Paiement réel testé

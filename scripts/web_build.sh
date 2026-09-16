@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# Build Flutter web for Vercel. Env vars come from the Vercel project settings.
+# Build Flutter web pour l'hébergeur statique (Netlify).
+# Les variables viennent des réglages d'environnement du site.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+
+# Netlify expose l'URL du site dans `URL` (et celle du deploy preview dans
+# `DEPLOY_PRIME_URL`). On s'en sert par défaut pour le lien du QR d'accueil.
+DEFAULT_WEB_APP_URL="${WEB_APP_URL:-${DEPLOY_PRIME_URL:-${URL:-}}}"
 
 echo "==> Writing .env for Flutter assets"
 cat > .env <<EOF
@@ -11,7 +16,7 @@ APP_NAME=${APP_NAME:-DesK Tattoo}
 APP_ENV=${APP_ENV:-prod}
 API_BASE_URL=${API_BASE_URL:-https://api.example.com}
 API_TIMEOUT_MS=${API_TIMEOUT_MS:-15000}
-WEB_APP_URL=${WEB_APP_URL:-}
+WEB_APP_URL=${DEFAULT_WEB_APP_URL}
 SUPABASE_URL=${SUPABASE_URL:?Missing SUPABASE_URL}
 SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:?Missing SUPABASE_ANON_KEY}
 STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
@@ -31,6 +36,9 @@ if [ ! -x "$FLUTTER_DIR/bin/flutter" ]; then
 fi
 
 export PATH="$FLUTTER_DIR/bin:$PATH"
+# Netlify tourne en utilisateur non privilégié : le SDK doit être inscriptible.
+git config --global --add safe.directory "$FLUTTER_DIR" || true
+
 flutter --version
 flutter config --no-analytics --enable-web
 flutter pub get

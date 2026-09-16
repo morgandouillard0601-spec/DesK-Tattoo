@@ -25,7 +25,7 @@ class BillingRepository {
     try {
       final Map<String, dynamic> body = <String, dynamic>{};
       if (kIsWeb) {
-        // Retour Stripe → même origine Vercel (preview ou prod).
+        // Retour Stripe → même origine que la page courante (preview ou prod).
         body['return_base_url'] = Uri.base.origin;
       }
 

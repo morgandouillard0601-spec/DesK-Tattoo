@@ -1,0 +1,25 @@
+[build]
+  command = "bash scripts/web_build.sh"
+  publish = "build/web"
+
+# Le clone du SDK Flutter demande un peu de temps au premier build.
+[build.environment]
+  NODE_VERSION = "20"
+
+# App Flutter en single-page : tout chemin inconnu renvoie index.html.
+# Netlify sert d'abord les fichiers existants, les assets ne sont donc pas
+# interceptés par cette règle.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/canvaskit/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

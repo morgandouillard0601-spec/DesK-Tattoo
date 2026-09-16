@@ -55,7 +55,7 @@ class AppConfig {
 
   /// Base publique de la webapp, utilisée pour construire le lien encodé dans
   /// le QR d'accueil client. Sur le web on préfère l'origine réelle de la page
-  /// (preview Vercel, domaine custom) à une valeur figée dans `.env`.
+  /// (deploy preview, domaine custom) à une valeur figée dans `.env`.
   static String _resolveWebAppUrl(String? configured) {
     final Uri current = Uri.base;
     if (current.scheme == 'http' || current.scheme == 'https') {
@@ -81,7 +81,7 @@ class AppConfig {
   final String stripeProductId;
   final String monthlyPriceLabel;
 
-  /// Origine de la webapp (sans slash final), ex. `https://desktattoo.vercel.app`.
+  /// Origine de la webapp (sans slash final), ex. `https://desktattoo.netlify.app`.
   final String webAppUrl;
 
   /// Lien public du formulaire d'accueil client pour un token donné.

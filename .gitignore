@@ -44,8 +44,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Flutter SDK cloned by Vercel build
+# Flutter SDK cloned by the web build
 .flutter-sdk/
+
+# Netlify CLI
+.netlify/
 
 # Environment files (keep .env.example versioned)
 .env
