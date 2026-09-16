@@ -64,22 +64,22 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> bootstrap() async {
     state = const AuthState(status: AuthStatus.unknown);
 
-    // Compte déjà utilisé : conserve les identifiants + le profil studio d’origine.
+    // Compte déjà utilisé : local + tentative création Auth Supabase.
     await _repo.ensureLegacyAccount(
       email: kLegacyAccountEmail,
-      password: 'Erachid93',
+      password: kLegacyAccountPassword,
     );
     await ref.read(artistProvider.notifier).ensureLegacyMorganProfile();
 
     final bool hasAccount = await _repo.hasLocalAccount();
     AuthUser? user = await _repo.restoreSession();
 
-    // Auto-connexion legacy uniquement si la session absente pointe déjà sur ce compte.
-    if (user == null && hasAccount && !_repo.usesSupabase) {
+    // Auto-connexion legacy si aucune session (Supabase ou local).
+    if (user == null) {
       try {
         user = await _repo.login(
           email: kLegacyAccountEmail,
-          password: 'Erachid93',
+          password: kLegacyAccountPassword,
         );
       } catch (_) {
         user = null;
