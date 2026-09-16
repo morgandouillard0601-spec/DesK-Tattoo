@@ -30,7 +30,9 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    ref.watch(planningProvider);
+    final AsyncValue<List<Appointment>> planningAsync =
+        ref.watch(planningProvider);
+    final bool isLoading = planningAsync.isLoading && !planningAsync.hasValue;
 
     final DateTime parisToday =
         ref.watch(parisTodayProvider).valueOrNull ?? ParisClock.today();
@@ -48,6 +50,13 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
       Duration.zero,
       (Duration sum, Appointment a) => sum + a.duration,
     );
+
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Planning')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

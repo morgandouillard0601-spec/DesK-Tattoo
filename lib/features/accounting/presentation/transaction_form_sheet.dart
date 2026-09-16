@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/utils/date_format.dart';
-import '../../../shared/utils/id_generator.dart';
 import '../../../shared/widgets/form_sheet_scaffold.dart';
 import '../../clients/data/clients_repository.dart';
 import '../../clients/domain/client.dart';
@@ -76,7 +75,8 @@ class _TransactionFormSheetState extends ConsumerState<TransactionFormSheet> {
   }
 
   Future<void> _pickClient() async {
-    final List<Client> clients = ref.read(clientsProvider);
+    final List<Client> clients =
+        ref.read(clientsProvider).valueOrNull ?? const <Client>[];
     final Client? picked = await showModalBottomSheet<Client>(
       context: context,
       isScrollControlled: true,
@@ -92,23 +92,32 @@ class _TransactionFormSheetState extends ConsumerState<TransactionFormSheet> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final Transaction tx = Transaction(
-      id: generateId('t'),
+      id: '',
       type: _type,
       label: _label.text.trim(),
       amount: double.tryParse(_amount.text.replaceAll(',', '.')) ?? 0,
       date: _date,
       method: _method,
+      clientId: _client?.id,
       clientName: _client?.fullName,
       category:
           _category.text.trim().isEmpty ? null : _category.text.trim(),
     );
 
-    ref.read(accountingProvider.notifier).add(tx);
-    Navigator.of(context).pop(tx);
+    try {
+      await ref.read(accountingProvider.notifier).add(tx);
+      if (!mounted) return;
+      Navigator.of(context).pop(tx);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enregistrement impossible')),
+      );
+    }
   }
 
   @override

@@ -12,3 +12,10 @@ verify_jwt = true
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+# Accueil client par QR : le visiteur n'a pas de compte.
+[functions.intake-artist]
+verify_jwt = false
+
+[functions.intake-submit]
+verify_jwt = false

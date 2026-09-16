@@ -42,6 +42,7 @@ dependencies:
   qr_flutter: ^4.1.0
   supabase_flutter: ^2.17.2
   url_launcher: ^6.3.2
+  signature: ^6.4.0
 
 dev_dependencies:
   flutter_test:

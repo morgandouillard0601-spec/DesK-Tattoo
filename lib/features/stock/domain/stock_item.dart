@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/data/artist_scoped_notifier.dart';
+
 enum StockCategory { needles, ink, cartridges, gloves, hygiene, machines, other }
 
+StockCategory stockCategoryFromWire(String? value) {
+  for (final StockCategory c in StockCategory.values) {
+    if (c.name == value) return c;
+  }
+  return StockCategory.other;
+}
+
 extension StockCategoryX on StockCategory {
+  /// Valeur attendue par la contrainte CHECK de `public.stock_items`.
+  String get wire => name;
+
   String get label => switch (this) {
         StockCategory.needles => 'Aiguilles',
         StockCategory.ink => 'Encres',
@@ -116,6 +128,21 @@ class StockItem {
     this.lastRestockAt,
   });
 
+  factory StockItem.fromSupabase(Map<String, dynamic> row) {
+    return StockItem(
+      id: readString(row['id']),
+      name: readString(row['name']),
+      category: stockCategoryFromWire(row['category'] as String?),
+      quantity: readInt(row['quantity']),
+      threshold: readInt(row['threshold']),
+      unit: readString(row['unit']),
+      unitPrice: readDouble(row['unit_price']),
+      subCategory: row['sub_category'] as String?,
+      brand: row['brand'] as String?,
+      lastRestockAt: readDate(row['last_restock_at']),
+    );
+  }
+
   final String id;
   final String name;
   final StockCategory category;
@@ -130,4 +157,43 @@ class StockItem {
   bool get isLow => quantity <= threshold;
   bool get isOutOfStock => quantity <= 0;
   double get totalValue => quantity * unitPrice;
+
+  /// Payload d'écriture (l'`artist_id` est ajouté par le repository).
+  Map<String, dynamic> toSupabase() => <String, dynamic>{
+        'name': name,
+        'category': category.wire,
+        'sub_category': subCategory,
+        'brand': brand,
+        'quantity': quantity,
+        'threshold': threshold,
+        'unit': unit,
+        'unit_price': unitPrice,
+        'last_restock_at': lastRestockAt?.toIso8601String(),
+      };
+
+  StockItem copyWith({
+    String? id,
+    String? name,
+    StockCategory? category,
+    int? quantity,
+    int? threshold,
+    String? unit,
+    double? unitPrice,
+    String? subCategory,
+    String? brand,
+    DateTime? lastRestockAt,
+  }) {
+    return StockItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      quantity: quantity ?? this.quantity,
+      threshold: threshold ?? this.threshold,
+      unit: unit ?? this.unit,
+      unitPrice: unitPrice ?? this.unitPrice,
+      subCategory: subCategory ?? this.subCategory,
+      brand: brand ?? this.brand,
+      lastRestockAt: lastRestockAt ?? this.lastRestockAt,
+    );
+  }
 }

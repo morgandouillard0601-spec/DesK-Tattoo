@@ -10,6 +10,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/billing/presentation/paywall_screen.dart';
 import '../../features/clients/presentation/client_detail_screen.dart';
 import '../../features/clients/presentation/clients_screen.dart';
+import '../../features/intake/presentation/intake_form_screen.dart';
 import '../../features/planning/presentation/planning_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
@@ -29,6 +30,12 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String adminStudios = '/admin/studios';
   static const String adminStudioDetail = '/admin/studios/:id';
+
+  /// Formulaire d'accueil client ouvert par le QR du tatoueur. Route publique.
+  static const String intake = '/intake/:token';
+
+  /// Préfixes accessibles sans compte ni abonnement.
+  static const List<String> publicPrefixes = <String>['/intake'];
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
@@ -43,8 +50,16 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
     debugLogDiagnostics: false,
     refreshListenable: refresh,
     redirect: (BuildContext context, GoRouterState state) {
-      final AuthState auth = ref.read(authProvider);
       final String loc = state.matchedLocation;
+
+      // Les pages publiques passent avant tout test de session : le client qui
+      // scanne le QR n'a pas de compte, et l'auto-connexion legacy ne doit pas
+      // le renvoyer vers le dashboard.
+      for (final String prefix in AppRoutes.publicPrefixes) {
+        if (loc.startsWith(prefix)) return null;
+      }
+
+      final AuthState auth = ref.read(authProvider);
       final bool onSplash = loc == AppRoutes.splash;
       final bool onLogin = loc == AppRoutes.login;
       final bool onPaywall = loc == AppRoutes.paywall;
@@ -83,6 +98,14 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: AppRoutes.login,
         name: 'login',
         builder: (_, _) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.intake,
+        name: 'intake',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (BuildContext context, GoRouterState state) => IntakeFormScreen(
+          token: state.pathParameters['token'] ?? '',
+        ),
       ),
       GoRoute(
         path: AppRoutes.paywall,

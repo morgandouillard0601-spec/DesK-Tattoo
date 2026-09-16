@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/utils/date_format.dart';
+import '../../consents/presentation/widgets/client_consents_section.dart';
 import '../../planning/data/planning_repository.dart';
 import '../../planning/domain/appointment.dart';
 import '../../planning/presentation/appointment_form_sheet.dart';
 import '../../planning/presentation/widgets/appointment_card.dart';
 import '../data/clients_repository.dart';
 import '../domain/client.dart';
+import 'client_form_sheet.dart';
 import 'widgets/client_avatar.dart';
 
 class ClientDetailScreen extends ConsumerWidget {
@@ -30,8 +32,21 @@ class ClientDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
-    ref.watch(clientsProvider);
+    final AsyncValue<List<Client>> clientsAsync = ref.watch(clientsProvider);
     ref.watch(planningProvider);
+
+    if (clientsAsync.isLoading && !clientsAsync.hasValue) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => context.pop(),
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final Client? client =
         ref.read(clientsProvider.notifier).getById(clientId);
     final List<Appointment> history =
@@ -60,11 +75,7 @@ class ClientDetailScreen extends ConsumerWidget {
           IconButton(
             tooltip: 'Modifier',
             icon: const Icon(Icons.edit_rounded),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Édition — bientôt')),
-              );
-            },
+            onPressed: () => showClientFormSheet(context, initial: client),
           ),
         ],
       ),
@@ -94,6 +105,37 @@ class ClientDetailScreen extends ConsumerWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
+                if (client.isFromIntake) ...<Widget>[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 15,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Fiche remplie par le client',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -131,13 +173,27 @@ class ClientDetailScreen extends ConsumerWidget {
               children: <Widget>[
                 ListTile(
                   leading: const Icon(Icons.phone_rounded),
-                  title: Text(client.phone),
+                  title: Text(client.phone.isEmpty ? '—' : client.phone),
                 ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.email_rounded),
-                  title: Text(client.email),
+                  title: Text(client.email.isEmpty ? '—' : client.email),
                 ),
+                if (client.addressLine.isNotEmpty) ...<Widget>[
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.home_outlined),
+                    title: Text(client.addressLine),
+                  ),
+                ],
+                if (client.birthDate != null) ...<Widget>[
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.cake_outlined),
+                    title: Text(AppDateFormat.dayLong(client.birthDate!)),
+                  ),
+                ],
               ],
             ),
           ),
@@ -158,6 +214,8 @@ class ClientDetailScreen extends ConsumerWidget {
               ),
             ),
           ],
+          const SizedBox(height: 24),
+          ClientConsentsSection(clientId: clientId),
           const SizedBox(height: 24),
           Row(
             children: <Widget>[

@@ -14,6 +14,7 @@ import '../../planning/domain/appointment.dart';
 import '../data/artist_repository.dart';
 import '../domain/artist.dart';
 import 'widgets/app_store_qr_card.dart';
+import 'widgets/client_intake_qr_card.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -25,14 +26,16 @@ class ProfileScreen extends ConsumerWidget {
     final ThemeMode themeMode = ref.watch(themeModeProvider);
     final AuthState auth = ref.watch(authProvider);
 
-    final int clientsCount = ref.watch(clientsProvider).length;
-    final List<Appointment> appointments = ref.watch(planningProvider);
+    final int clientsCount =
+        ref.watch(clientsProvider).valueOrNull?.length ?? 0;
+    final List<Appointment> appointments =
+        ref.watch(planningProvider).valueOrNull ?? const <Appointment>[];
     final Duration totalHours = appointments.fold<Duration>(
       Duration.zero,
       (Duration s, Appointment a) => s + a.duration,
     );
-    final double totalIncome = ref
-        .watch(accountingProvider)
+    final double totalIncome = (ref.watch(accountingProvider).valueOrNull ??
+            const <Transaction>[])
         .where((Transaction t) => t.type == TransactionType.income)
         .fold<double>(0, (double s, Transaction t) => s + t.amount);
 
@@ -198,6 +201,15 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ],
+          const SizedBox(height: 24),
+          Text(
+            'Accueil client',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const ClientIntakeQrCard(),
           const SizedBox(height: 24),
           Text(
             'Partager l\'app',

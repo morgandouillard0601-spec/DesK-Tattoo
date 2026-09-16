@@ -11,6 +11,10 @@ supabase secrets set SITE_URL=https://TON-PROJET.vercel.app
 supabase functions deploy create-checkout-session
 supabase functions deploy subscription-status
 supabase functions deploy stripe-webhook --no-verify-jwt
+
+# Accueil client par QR (functions publiques)
+supabase functions deploy intake-artist --no-verify-jwt
+supabase functions deploy intake-submit --no-verify-jwt
 ```
 
 Webhook URL :

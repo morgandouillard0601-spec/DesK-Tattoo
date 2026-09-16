@@ -91,6 +91,23 @@ class ArtistNotifier extends Notifier<Artist> {
     }
   }
 
+  /// Régénère le token du QR d'accueil client : les QR déjà imprimés cessent
+  /// de fonctionner. Retourne le nouveau token.
+  Future<String> rotateIntakeToken() async {
+    final SupabaseClient? client = _supabase;
+    if (client == null) {
+      throw StateError('Supabase non configuré');
+    }
+    final Object? result = await client.rpc<Object?>('rotate_intake_token');
+    final String token = result?.toString() ?? '';
+    if (token.isEmpty) {
+      throw StateError('Rotation du lien impossible');
+    }
+    state = state.copyWith(publicIntakeToken: token);
+    await _prefs.writeArtistProfile(state);
+    return token;
+  }
+
   Future<void> refreshFromRemote() async {
     final String id = state.id;
     if (id.isEmpty || id.startsWith('artist_')) return;

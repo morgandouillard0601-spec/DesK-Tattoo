@@ -6,6 +6,8 @@ Fichiers à exécuter dans **Supabase → SQL Editor**.
 
 1. Ouvre **`sql/00_all_in_one.sql`**, colle tout dans le SQL Editor, **Run**.
 2. Ouvre **`sql/06_onboarding_billing.sql`**, colle tout, **Run**.
+3. Ouvre **`sql/07_intake_consents.sql`**, colle tout, **Run**.
+4. Optionnel — **`sql/08_seed_demo.sql`** pour peupler un compte de test (adapte l'email en haut du fichier).
 
 > Pas de `\i` : ça ne marche pas dans le dashboard web.
 
@@ -19,6 +21,8 @@ Fichiers à exécuter dans **Supabase → SQL Editor**.
 | 4 | `sql/04_storage.sql` | Buckets storage |
 | 5 | `sql/05_realtime.sql` | Realtime |
 | 6 | `sql/06_onboarding_billing.sql` | Adresse / SIRET / Stripe / admin |
+| 7 | `sql/07_intake_consents.sql` | QR d'accueil, fiche client publique, contrats signés |
+| 8 | `sql/08_seed_demo.sql` | Données de démo (optionnel) |
 
 ## Edge Functions (Stripe)
 
@@ -33,6 +37,15 @@ supabase secrets set SITE_URL=https://TON-PROJET.vercel.app
 supabase functions deploy create-checkout-session
 supabase functions deploy stripe-webhook --no-verify-jwt
 supabase functions deploy subscription-status
+```
+
+## Edge Functions (accueil client par QR)
+
+Ces deux functions sont **publiques** : le client qui scanne le QR n'a pas de compte.
+
+```bash
+supabase functions deploy intake-artist --no-verify-jwt
+supabase functions deploy intake-submit --no-verify-jwt
 ```
 
 Dans Stripe Dashboard → Webhooks → endpoint :

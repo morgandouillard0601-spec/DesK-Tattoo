@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/utils/id_generator.dart';
 import '../../../shared/widgets/form_sheet_scaffold.dart';
 import '../data/clients_repository.dart';
 import '../domain/client.dart';
 
-Future<Client?> showClientFormSheet(BuildContext context) {
+Future<Client?> showClientFormSheet(
+  BuildContext context, {
+  Client? initial,
+}) {
   return showModalBottomSheet<Client>(
     context: context,
     isScrollControlled: true,
@@ -15,12 +17,14 @@ Future<Client?> showClientFormSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (_) => const ClientFormSheet(),
+    builder: (_) => ClientFormSheet(initial: initial),
   );
 }
 
 class ClientFormSheet extends ConsumerStatefulWidget {
-  const ClientFormSheet({super.key});
+  const ClientFormSheet({this.initial, super.key});
+
+  final Client? initial;
 
   @override
   ConsumerState<ClientFormSheet> createState() => _ClientFormSheetState();
@@ -28,11 +32,26 @@ class ClientFormSheet extends ConsumerStatefulWidget {
 
 class _ClientFormSheetState extends ConsumerState<ClientFormSheet> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _firstName = TextEditingController();
-  final TextEditingController _lastName = TextEditingController();
-  final TextEditingController _phone = TextEditingController();
-  final TextEditingController _email = TextEditingController();
-  final TextEditingController _notes = TextEditingController();
+  late final TextEditingController _firstName;
+  late final TextEditingController _lastName;
+  late final TextEditingController _phone;
+  late final TextEditingController _email;
+  late final TextEditingController _notes;
+
+  bool _busy = false;
+
+  bool get _isEditing => widget.initial != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final Client? i = widget.initial;
+    _firstName = TextEditingController(text: i?.firstName ?? '');
+    _lastName = TextEditingController(text: i?.lastName ?? '');
+    _phone = TextEditingController(text: i?.phone ?? '');
+    _email = TextEditingController(text: i?.email ?? '');
+    _notes = TextEditingController(text: i?.notes ?? '');
+  }
 
   @override
   void dispose() {
@@ -44,27 +63,92 @@ class _ClientFormSheetState extends ConsumerState<ClientFormSheet> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _busy = true);
 
-    final Client client = Client(
-      id: generateId('c'),
+    final Client? initial = widget.initial;
+    final Client client = (initial ??
+            Client(
+              id: '',
+              firstName: '',
+              lastName: '',
+              phone: '',
+              email: '',
+              createdAt: DateTime.now(),
+            ))
+        .copyWith(
       firstName: _firstName.text.trim(),
       lastName: _lastName.text.trim(),
       phone: _phone.text.trim(),
       email: _email.text.trim(),
-      createdAt: DateTime.now(),
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
     );
 
-    ref.read(clientsProvider.notifier).add(client);
-    Navigator.of(context).pop(client);
+    try {
+      final ClientsNotifier notifier = ref.read(clientsProvider.notifier);
+      if (_isEditing) {
+        await notifier.save(client);
+      } else {
+        await notifier.add(client);
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(client);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enregistrement impossible')),
+      );
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final Client? initial = widget.initial;
+    if (initial == null) return;
+
+    final bool confirmed = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) => AlertDialog(
+            title: const Text('Supprimer ce client ?'),
+            content: Text(
+              'La fiche de ${initial.fullName} et ses contrats signés seront '
+              'définitivement supprimés.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Supprimer'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(clientsProvider.notifier).delete(initial.id);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Suppression impossible')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return FormSheetScaffold(
-      title: 'Nouveau client',
+      title: _isEditing ? 'Modifier le client' : 'Nouveau client',
+      canSave: !_busy,
       onSave: _save,
       child: Form(
         key: _formKey,
@@ -130,6 +214,14 @@ class _ClientFormSheetState extends ConsumerState<ClientFormSheet> {
                 alignLabelWithHint: true,
               ),
             ),
+            if (_isEditing) ...<Widget>[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _confirmDelete,
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Supprimer le client'),
+              ),
+            ],
             const SizedBox(height: 8),
           ],
         ),

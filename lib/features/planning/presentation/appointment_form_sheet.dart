@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/utils/date_format.dart';
-import '../../../shared/utils/id_generator.dart';
 import '../../../shared/widgets/form_sheet_scaffold.dart';
 import '../../clients/data/clients_repository.dart';
 import '../../clients/domain/client.dart';
@@ -141,7 +140,8 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
   }
 
   Future<void> _pickClient() async {
-    final List<Client> clients = ref.read(clientsProvider);
+    final List<Client> clients =
+        ref.read(clientsProvider).valueOrNull ?? const <Client>[];
     final Client? picked = await showModalBottomSheet<Client>(
       context: context,
       isScrollControlled: true,
@@ -155,7 +155,7 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
     if (created != null) setState(() => _client = created);
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_client == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -177,34 +177,31 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
 
     final PlanningNotifier notifier = ref.read(planningProvider.notifier);
 
-    if (_isEdit) {
-      final Appointment updated = Appointment(
-        id: widget.initial!.id,
-        clientId: _client!.id,
-        clientName: _client!.fullName,
-        title: _title.text.trim(),
-        start: start,
-        duration: _duration,
-        price: price,
-        status: _status,
-        notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+    final Appointment appointment = Appointment(
+      id: _isEdit ? widget.initial!.id : '',
+      clientId: _client!.id,
+      clientName: _client!.fullName,
+      title: _title.text.trim(),
+      start: start,
+      duration: _duration,
+      price: price,
+      status: _status,
+      notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+    );
+
+    try {
+      if (_isEdit) {
+        await notifier.save(appointment);
+      } else {
+        await notifier.add(appointment);
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(appointment);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enregistrement impossible')),
       );
-      notifier.update(updated);
-      Navigator.of(context).pop(updated);
-    } else {
-      final Appointment created = Appointment(
-        id: generateId('a'),
-        clientId: _client!.id,
-        clientName: _client!.fullName,
-        title: _title.text.trim(),
-        start: start,
-        duration: _duration,
-        price: price,
-        status: _status,
-        notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-      );
-      notifier.add(created);
-      Navigator.of(context).pop(created);
     }
   }
 
@@ -235,7 +232,8 @@ class _AppointmentFormSheetState extends ConsumerState<AppointmentFormSheet> {
     );
 
     if (ok == true && mounted) {
-      ref.read(planningProvider.notifier).delete(widget.initial!.id);
+      await ref.read(planningProvider.notifier).delete(widget.initial!.id);
+      if (!mounted) return;
       Navigator.of(context).pop();
     }
   }

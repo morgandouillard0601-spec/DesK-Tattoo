@@ -1,104 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/data/artist_scoped_notifier.dart';
 import '../domain/appointment.dart';
 
-class PlanningNotifier extends Notifier<List<Appointment>> {
+class PlanningNotifier extends ArtistScopedNotifier<Appointment> {
   @override
-  List<Appointment> build() => List<Appointment>.from(_seed);
+  String get table => 'appointments';
 
-  static DateTime _at(int dayOffset, int hour, [int minute = 0]) {
-    final DateTime now = DateTime.now();
-    final DateTime base = DateTime(now.year, now.month, now.day);
-    return base.add(Duration(days: dayOffset, hours: hour, minutes: minute));
-  }
+  @override
+  String get orderColumn => 'start_at';
 
-  static final List<Appointment> _seed = <Appointment>[
-    Appointment(
-      id: 'a1',
-      clientId: 'c1',
-      clientName: 'Camille Moreau',
-      title: 'Retouche rose épaule',
-      start: _at(0, 10),
-      duration: const Duration(hours: 1, minutes: 30),
-      price: 150,
-      status: AppointmentStatus.confirmed,
-      notes: 'Retouche couleurs + ombrage léger.',
-    ),
-    Appointment(
-      id: 'a2',
-      clientId: 'c2',
-      clientName: 'Lucas Bernard',
-      title: 'Lettrage avant-bras',
-      start: _at(0, 13),
-      duration: const Duration(hours: 2),
-      price: 280,
-      status: AppointmentStatus.scheduled,
-    ),
-    Appointment(
-      id: 'a3',
-      clientId: 'c3',
-      clientName: 'Inès Garcia',
-      title: 'Session sleeve 4/6',
-      start: _at(0, 16),
-      duration: const Duration(hours: 3),
-      price: 420,
-      status: AppointmentStatus.confirmed,
-      notes: 'Apporter référence pivoines.',
-    ),
-    Appointment(
-      id: 'a4',
-      clientId: 'c5',
-      clientName: 'Sofia Martins',
-      title: 'Mini tatouage poignet',
-      start: _at(1, 11),
-      duration: const Duration(minutes: 45),
-      price: 90,
-      status: AppointmentStatus.scheduled,
-    ),
-    Appointment(
-      id: 'a5',
-      clientId: 'c4',
-      clientName: 'Hugo Petit',
-      title: 'Consultation projet dos',
-      start: _at(1, 15),
-      duration: const Duration(minutes: 30),
-      price: 0,
-      status: AppointmentStatus.scheduled,
-    ),
-    Appointment(
-      id: 'a6',
-      clientId: 'c6',
-      clientName: 'Mathis Lefevre',
-      title: 'Black work mollet',
-      start: _at(2, 10),
-      duration: const Duration(hours: 2, minutes: 30),
-      price: 350,
-      status: AppointmentStatus.confirmed,
-    ),
-    Appointment(
-      id: 'a7',
-      clientId: 'c1',
-      clientName: 'Camille Moreau',
-      title: 'Suivi cicatrisation',
-      start: _at(3, 17),
-      duration: const Duration(minutes: 20),
-      price: 0,
-      status: AppointmentStatus.scheduled,
-    ),
-    Appointment(
-      id: 'a8',
-      clientId: 'c2',
-      clientName: 'Lucas Bernard',
-      title: 'Session géométrique',
-      start: _at(-1, 14),
-      duration: const Duration(hours: 2),
-      price: 320,
-      status: AppointmentStatus.completed,
-    ),
-  ];
+  @override
+  bool get orderAscending => true;
+
+  @override
+  Appointment fromRow(Map<String, dynamic> row) =>
+      Appointment.fromSupabase(row);
 
   List<Appointment> forDay(DateTime day) {
-    return state
+    return items
         .where(
           (Appointment a) =>
               a.start.year == day.year &&
@@ -111,29 +31,23 @@ class PlanningNotifier extends Notifier<List<Appointment>> {
 
   List<Appointment> forClient(String clientId) {
     final List<Appointment> list =
-        state.where((Appointment a) => a.clientId == clientId).toList();
+        items.where((Appointment a) => a.clientId == clientId).toList();
     list.sort((Appointment a, Appointment b) => b.start.compareTo(a.start));
     return list;
   }
 
-  void add(Appointment appointment) {
-    state = <Appointment>[...state, appointment];
-  }
+  Future<void> add(Appointment appointment) =>
+      insertRow(appointment.toSupabase());
 
-  void update(Appointment appointment) {
-    state = <Appointment>[
-      for (final Appointment a in state)
-        if (a.id == appointment.id) appointment else a,
-    ];
-  }
+  /// Nommée `save` et non `update` : `AsyncNotifier` expose déjà `update`.
+  Future<void> save(Appointment appointment) =>
+      updateRow(appointment.id, appointment.toSupabase());
 
-  void delete(String id) {
-    state =
-        state.where((Appointment a) => a.id != id).toList(growable: false);
-  }
+  Future<void> delete(String id) => deleteRow(id);
 }
 
-final NotifierProvider<PlanningNotifier, List<Appointment>> planningProvider =
-    NotifierProvider<PlanningNotifier, List<Appointment>>(
+final AsyncNotifierProvider<PlanningNotifier, List<Appointment>>
+    planningProvider =
+    AsyncNotifierProvider<PlanningNotifier, List<Appointment>>(
   PlanningNotifier.new,
 );

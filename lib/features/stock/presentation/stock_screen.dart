@@ -23,7 +23,9 @@ class _StockScreenState extends ConsumerState<StockScreen> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final List<StockItem> all = ref.watch(stockProvider);
+    final AsyncValue<List<StockItem>> stockAsync = ref.watch(stockProvider);
+    final List<StockItem> all = stockAsync.valueOrNull ?? const <StockItem>[];
+    final bool isLoading = stockAsync.isLoading && !stockAsync.hasValue;
 
     List<StockItem> items = _query.trim().isEmpty
         ? List<StockItem>.from(all)
@@ -61,6 +63,13 @@ class _StockScreenState extends ConsumerState<StockScreen> {
               i.subCategory!,
         },
     ]..sort();
+
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Stock')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

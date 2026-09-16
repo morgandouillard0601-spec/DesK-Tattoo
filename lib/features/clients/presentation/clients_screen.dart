@@ -21,22 +21,18 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Client> all = ref.watch(clientsProvider);
-    final List<Client> clients = _query.trim().isEmpty
-        ? List<Client>.from(all)
-        : all
-            .where(
-              (Client c) =>
-                  c.fullName.toLowerCase().contains(_query.toLowerCase()) ||
-                  c.phone.toLowerCase().contains(_query.toLowerCase()) ||
-                  c.email.toLowerCase().contains(_query.toLowerCase()),
-            )
-            .toList();
-    clients.sort((Client a, Client b) => a.lastName.compareTo(b.lastName));
+    final AsyncValue<List<Client>> clientsAsync = ref.watch(clientsProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Clientèle'),
+        actions: <Widget>[
+          IconButton(
+            tooltip: 'Actualiser',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.read(clientsProvider.notifier).refresh(),
+          ),
+        ],
       ),
       body: CustomScrollView(
         slivers: <Widget>[
@@ -53,25 +49,27 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
               ),
             ),
           ),
-          if (clients.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: EmptyState(
-                icon: Icons.person_search_rounded,
-                title: 'Aucun client',
-                message: 'Aucun résultat ne correspond à ta recherche.',
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-              sliver: SliverList.separated(
-                itemCount: clients.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (BuildContext context, int index) =>
-                    _ClientTile(client: clients[index]),
-              ),
-            ),
+          ...switch (clientsAsync) {
+            AsyncLoading<List<Client>>() => <Widget>[
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ],
+            AsyncError<List<Client>>() => <Widget>[
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: EmptyState(
+                    icon: Icons.cloud_off_rounded,
+                    title: 'Clients indisponibles',
+                    message:
+                        'Impossible de charger la clientèle. Vérifie ta connexion.',
+                  ),
+                ),
+              ],
+            AsyncValue<List<Client>>(value: final List<Client>? all) =>
+              _buildList(all ?? const <Client>[]),
+          },
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -80,6 +78,48 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
         label: const Text('Client'),
       ),
     );
+  }
+
+  List<Widget> _buildList(List<Client> all) {
+    final String q = _query.trim().toLowerCase();
+    final List<Client> clients = q.isEmpty
+        ? List<Client>.from(all)
+        : all
+            .where(
+              (Client c) =>
+                  c.fullName.toLowerCase().contains(q) ||
+                  c.phone.toLowerCase().contains(q) ||
+                  c.email.toLowerCase().contains(q),
+            )
+            .toList();
+    clients.sort((Client a, Client b) => a.lastName.compareTo(b.lastName));
+
+    if (clients.isEmpty) {
+      return <Widget>[
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: EmptyState(
+            icon: Icons.person_search_rounded,
+            title: all.isEmpty ? 'Aucun client' : 'Aucun résultat',
+            message: all.isEmpty
+                ? 'Ajoute un client, ou fais scanner ton QR fiche client.'
+                : 'Aucun résultat ne correspond à ta recherche.',
+          ),
+        ),
+      ];
+    }
+
+    return <Widget>[
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        sliver: SliverList.separated(
+          itemCount: clients.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (BuildContext context, int index) =>
+              _ClientTile(client: clients[index]),
+        ),
+      ),
+    ];
   }
 
   Future<void> _createClient() async {
@@ -110,11 +150,26 @@ class _ClientTile extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: ClientAvatar(client: client),
-        title: Text(
-          client.fullName,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+        title: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                client.fullName,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (client.isFromIntake)
+              Tooltip(
+                message: 'Fiche remplie par le client',
+                child: Icon(
+                  Icons.qr_code_2_rounded,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

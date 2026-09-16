@@ -21,6 +21,7 @@ class Artist {
     this.subscriptionCurrentPeriodEnd,
     this.onboardingCompletedAt,
     this.createdAt,
+    this.publicIntakeToken,
   });
 
   factory Artist.empty() => const Artist(
@@ -73,6 +74,8 @@ class Artist {
         json['onboardingCompletedAt'] ?? json['onboarding_completed_at'],
       ),
       createdAt: _parseDate(json['createdAt'] ?? json['created_at']),
+      publicIntakeToken:
+          (json['publicIntakeToken'] ?? json['public_intake_token']) as String?,
     );
   }
 
@@ -103,6 +106,12 @@ class Artist {
   final DateTime? subscriptionCurrentPeriodEnd;
   final DateTime? onboardingCompletedAt;
   final DateTime? createdAt;
+
+  /// Token encodé dans le QR d'accueil client (lien public `/intake/<token>`).
+  final String? publicIntakeToken;
+
+  bool get hasIntakeToken =>
+      publicIntakeToken != null && publicIntakeToken!.trim().isNotEmpty;
 
   String get fullName => '$firstName $lastName'.trim();
 
@@ -152,6 +161,7 @@ class Artist {
             subscriptionCurrentPeriodEnd?.toIso8601String(),
         'onboardingCompletedAt': onboardingCompletedAt?.toIso8601String(),
         'createdAt': createdAt?.toIso8601String(),
+        'publicIntakeToken': publicIntakeToken,
       };
 
   Map<String, dynamic> toSupabaseUpdate() => <String, dynamic>{
@@ -193,6 +203,7 @@ class Artist {
     DateTime? subscriptionCurrentPeriodEnd,
     DateTime? onboardingCompletedAt,
     DateTime? createdAt,
+    String? publicIntakeToken,
   }) {
     return Artist(
       id: id ?? this.id,
@@ -218,6 +229,7 @@ class Artist {
       onboardingCompletedAt:
           onboardingCompletedAt ?? this.onboardingCompletedAt,
       createdAt: createdAt ?? this.createdAt,
+      publicIntakeToken: publicIntakeToken ?? this.publicIntakeToken,
     );
   }
 }

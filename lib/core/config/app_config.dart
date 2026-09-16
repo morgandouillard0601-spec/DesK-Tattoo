@@ -16,6 +16,7 @@ class AppConfig {
     required this.stripePublishableKey,
     required this.stripeProductId,
     required this.monthlyPriceLabel,
+    required this.webAppUrl,
   });
 
   factory AppConfig.fromEnv() {
@@ -48,7 +49,23 @@ class AppConfig {
       stripeProductId:
           dotenv.maybeGet('STRIPE_PRODUCT_ID') ?? 'prod_VFctn7oeEEtvpK',
       monthlyPriceLabel: dotenv.maybeGet('STRIPE_PRICE_LABEL') ?? '19,99 €',
+      webAppUrl: _resolveWebAppUrl(dotenv.maybeGet('WEB_APP_URL')),
     );
+  }
+
+  /// Base publique de la webapp, utilisée pour construire le lien encodé dans
+  /// le QR d'accueil client. Sur le web on préfère l'origine réelle de la page
+  /// (preview Vercel, domaine custom) à une valeur figée dans `.env`.
+  static String _resolveWebAppUrl(String? configured) {
+    final Uri current = Uri.base;
+    if (current.scheme == 'http' || current.scheme == 'https') {
+      return current.origin;
+    }
+    final String value = (configured ?? '').trim();
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value.replaceAll(RegExp(r'/+$'), '');
+    }
+    return 'https://desktattoo.app';
   }
 
   final String appName;
@@ -63,6 +80,12 @@ class AppConfig {
   final String stripePublishableKey;
   final String stripeProductId;
   final String monthlyPriceLabel;
+
+  /// Origine de la webapp (sans slash final), ex. `https://desktattoo.vercel.app`.
+  final String webAppUrl;
+
+  /// Lien public du formulaire d'accueil client pour un token donné.
+  String intakeUrl(String token) => '$webAppUrl/intake/$token';
 
   bool get isDev => env == AppEnv.dev;
   bool get isProd => env == AppEnv.prod;

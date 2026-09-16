@@ -24,9 +24,17 @@ class AccountingScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
-    ref.watch(accountingProvider);
+    final AsyncValue<List<Transaction>> accountingAsync =
+        ref.watch(accountingProvider);
     final AccountingNotifier notifier =
         ref.read(accountingProvider.notifier);
+
+    if (accountingAsync.isLoading && !accountingAsync.hasValue) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Comptabilité')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     final DateTime now = DateTime.now();
     final double income = notifier.monthIncome(now);

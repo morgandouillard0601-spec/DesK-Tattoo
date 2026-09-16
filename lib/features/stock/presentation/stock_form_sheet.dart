@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/utils/id_generator.dart';
 import '../../../shared/widgets/form_sheet_scaffold.dart';
 import '../data/stock_repository.dart';
 import '../domain/stock_item.dart';
@@ -77,7 +76,7 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final String? sub = _customSub.text.trim().isNotEmpty
@@ -89,36 +88,33 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
 
     final StockNotifier notifier = ref.read(stockProvider.notifier);
 
-    if (_isEdit) {
-      final StockItem updated = StockItem(
-        id: widget.initial!.id,
-        name: _name.text.trim(),
-        category: _category,
-        subCategory: sub,
-        brand: brand,
-        quantity: int.tryParse(_quantity.text) ?? 0,
-        threshold: int.tryParse(_threshold.text) ?? 0,
-        unit: _unit.text.trim(),
-        unitPrice: double.tryParse(_unitPrice.text.replaceAll(',', '.')) ?? 0,
-        lastRestockAt: widget.initial!.lastRestockAt,
-      );
-      notifier.update(updated);
-      Navigator.of(context).pop(updated);
-    } else {
-      final StockItem item = StockItem(
-        id: generateId('s'),
-        name: _name.text.trim(),
-        category: _category,
-        subCategory: sub,
-        brand: brand,
-        quantity: int.tryParse(_quantity.text) ?? 0,
-        threshold: int.tryParse(_threshold.text) ?? 0,
-        unit: _unit.text.trim(),
-        unitPrice: double.tryParse(_unitPrice.text.replaceAll(',', '.')) ?? 0,
-        lastRestockAt: DateTime.now(),
-      );
-      notifier.add(item);
+    final StockItem item = StockItem(
+      id: _isEdit ? widget.initial!.id : '',
+      name: _name.text.trim(),
+      category: _category,
+      subCategory: sub,
+      brand: brand,
+      quantity: int.tryParse(_quantity.text) ?? 0,
+      threshold: int.tryParse(_threshold.text) ?? 0,
+      unit: _unit.text.trim(),
+      unitPrice: double.tryParse(_unitPrice.text.replaceAll(',', '.')) ?? 0,
+      lastRestockAt:
+          _isEdit ? widget.initial!.lastRestockAt : DateTime.now(),
+    );
+
+    try {
+      if (_isEdit) {
+        await notifier.save(item);
+      } else {
+        await notifier.add(item);
+      }
+      if (!mounted) return;
       Navigator.of(context).pop(item);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enregistrement impossible')),
+      );
     }
   }
 
@@ -148,7 +144,8 @@ class _StockFormSheetState extends ConsumerState<StockFormSheet> {
     );
 
     if (ok == true && mounted) {
-      ref.read(stockProvider.notifier).delete(widget.initial!.id);
+      await ref.read(stockProvider.notifier).delete(widget.initial!.id);
+      if (!mounted) return;
       Navigator.of(context).pop();
     }
   }
