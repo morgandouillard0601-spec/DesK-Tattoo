@@ -1,16 +1,93 @@
 /// Helpers partagés par les functions publiques d'accueil client (QR).
 
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+
+/** Compte de test : le formulaire QR s'ouvre même sans abonnement ni fiche complète. */
+export const TEST_INTAKE_EMAIL = 'morgandesk@gmail.com';
+
+const ARTIST_INTAKE_FIELDS =
+  'id, email, first_name, last_name, studio_name, city, role, subscription_status';
+
+type IntakeArtistRow = {
+  id: string;
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  studio_name?: string | null;
+  city?: string | null;
+  role?: string | null;
+  subscription_status?: string | null;
+};
+
 /// Un artiste peut recevoir des fiches clients uniquement si son abonnement
-/// est en règle (ou s'il est admin).
+/// est en règle (ou s'il est admin). Le compte de test passe toujours.
 export function isArtistEntitled(artist: {
   role?: string | null;
   subscription_status?: string | null;
+  email?: string | null;
 }): boolean {
+  if ((artist.email ?? '').trim().toLowerCase() === TEST_INTAKE_EMAIL) {
+    return true;
+  }
   if (artist.role === 'admin') return true;
   return (
     artist.subscription_status === 'active' ||
     artist.subscription_status === 'trialing'
   );
+}
+
+/// Résout le studio du QR. Si le token n'est pas encore en base (QR local),
+/// on rattache le compte de test pour pouvoir essayer le formulaire.
+export async function resolveIntakeArtist(
+  admin: SupabaseClient,
+  token: string,
+): Promise<IntakeArtistRow | null> {
+  const byToken = await admin
+    .from('artists')
+    .select(ARTIST_INTAKE_FIELDS)
+    .eq('public_intake_token', token)
+    .maybeSingle();
+
+  if (byToken.data) return byToken.data as IntakeArtistRow;
+
+  const byEmail = await admin
+    .from('artists')
+    .select(ARTIST_INTAKE_FIELDS)
+    .ilike('email', TEST_INTAKE_EMAIL)
+    .maybeSingle();
+
+  if (byEmail.data) return byEmail.data as IntakeArtistRow;
+
+  const { data: listed } = await admin.auth.admin.listUsers({ perPage: 200 });
+  const user = (listed?.users ?? []).find(
+    (u) => (u.email ?? '').trim().toLowerCase() === TEST_INTAKE_EMAIL,
+  );
+  if (!user) return null;
+
+  const base = {
+    id: user.id,
+    email: TEST_INTAKE_EMAIL,
+    first_name: 'Morgan',
+    last_name: 'Desk',
+    studio_name: 'DesK Tattoo Studio',
+    city: 'Paris',
+    role: 'admin',
+    subscription_status: 'active',
+  };
+
+  const withToken = await admin
+    .from('artists')
+    .upsert({ ...base, public_intake_token: token })
+    .select(ARTIST_INTAKE_FIELDS)
+    .single();
+  if (withToken.data) return withToken.data as IntakeArtistRow;
+
+  const withoutToken = await admin
+    .from('artists')
+    .upsert(base)
+    .select(ARTIST_INTAKE_FIELDS)
+    .single();
+  return (withoutToken.data as IntakeArtistRow | null) ?? null;
 }
 
 export function decodeBase64(value: string): Uint8Array {

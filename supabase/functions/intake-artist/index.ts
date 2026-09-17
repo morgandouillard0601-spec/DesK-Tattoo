@@ -1,5 +1,9 @@
 import { adminClient, corsHeaders, jsonResponse } from '../_shared/cors.ts';
-import { asTrimmedString, isArtistEntitled } from '../_shared/intake.ts';
+import {
+  asTrimmedString,
+  isArtistEntitled,
+  resolveIntakeArtist,
+} from '../_shared/intake.ts';
 
 /// Function PUBLIQUE (verify_jwt = false).
 /// Le client qui scanne le QR n'a pas de compte : on renvoie juste de quoi
@@ -25,15 +29,9 @@ Deno.serve(async (req) => {
   }
 
   const admin = adminClient();
-  const { data: artist, error } = await admin
-    .from('artists')
-    .select(
-      'first_name, last_name, studio_name, city, role, subscription_status',
-    )
-    .eq('public_intake_token', token)
-    .maybeSingle();
+  const artist = await resolveIntakeArtist(admin, token);
 
-  if (error || !artist) {
+  if (!artist) {
     return jsonResponse({ error: 'Ce lien n\'est plus valide' }, 404);
   }
 

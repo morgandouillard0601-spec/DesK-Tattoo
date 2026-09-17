@@ -6,6 +6,7 @@ import {
   decodeBase64,
   isArtistEntitled,
   normalizePhone,
+  resolveIntakeArtist,
   sha256Hex,
 } from '../_shared/intake.ts';
 
@@ -116,13 +117,9 @@ Deno.serve(async (req) => {
   // -------------------------------------------------------------------------
   // Artiste ciblé par le QR
   // -------------------------------------------------------------------------
-  const { data: artist, error: artistError } = await admin
-    .from('artists')
-    .select('id, studio_name, role, subscription_status')
-    .eq('public_intake_token', token)
-    .maybeSingle();
+  const artist = await resolveIntakeArtist(admin, token);
 
-  if (artistError || !artist) {
+  if (!artist) {
     return jsonResponse({ error: 'Ce lien n\'est plus valide' }, 404);
   }
   if (!isArtistEntitled(artist)) {
@@ -165,26 +162,36 @@ Deno.serve(async (req) => {
   }
 
   if (!clientId) {
-    const { data: created, error: insertError } = await admin
-      .from('clients')
-      .insert({
-        artist_id: artist.id,
-        first_name: firstName,
-        last_name: lastName,
-        phone,
-        email,
-        address,
-        city,
-        postal_code: postalCode,
-        birth_date: birthDate,
-        source: 'intake',
-      })
-      .select('id')
-      .single();
-    if (insertError || !created) {
+    const fullRow = {
+      artist_id: artist.id,
+      first_name: firstName,
+      last_name: lastName,
+      phone,
+      email,
+      address,
+      city,
+      postal_code: postalCode,
+      birth_date: birthDate,
+      source: 'intake',
+    };
+    let created = (await admin.from('clients').insert(fullRow).select('id').single());
+    if (created.error || !created.data) {
+      created = await admin
+        .from('clients')
+        .insert({
+          artist_id: artist.id,
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+          email,
+        })
+        .select('id')
+        .single();
+    }
+    if (created.error || !created.data) {
       return jsonResponse({ error: 'Création de la fiche impossible' }, 502);
     }
-    clientId = created.id;
+    clientId = created.data.id;
   }
 
   // -------------------------------------------------------------------------

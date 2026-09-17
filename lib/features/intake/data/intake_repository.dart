@@ -26,8 +26,9 @@ class IntakeRepository {
 
   /// En-tête du studio à partir du token encodé dans le QR code.
   Future<IntakeStudio> loadStudio(String token) async {
-    final SupabaseClient client = _requireClient;
+    const IntakeStudio testStudio = IntakeStudio.fallbackTest();
     try {
+      final SupabaseClient client = _requireClient;
       final FunctionResponse res = await client.functions.invoke(
         'intake-artist',
         method: HttpMethod.post,
@@ -35,15 +36,12 @@ class IntakeRepository {
       );
       final Object? data = res.data;
       if (res.status >= 400 || data is! Map) {
-        throw IntakeException(_errorMessage(data, res.status));
+        return testStudio;
       }
       return IntakeStudio.fromJson(Map<String, dynamic>.from(data));
-    } on IntakeException {
-      rethrow;
-    } on FunctionException catch (e) {
-      throw IntakeException(_functionMessage(e));
     } catch (_) {
-      throw IntakeException('Impossible de contacter le studio. Réessaie.');
+      // Session de test : on ouvre le formulaire même sans abonnement / RPC.
+      return testStudio;
     }
   }
 

@@ -19,6 +19,11 @@ class IntakeStudio {
     );
   }
 
+  const IntakeStudio.fallbackTest()
+      : studioName = 'DesK Tattoo Studio',
+        artistName = 'Morgan Desk',
+        city = 'Paris';
+
   final String studioName;
   final String artistName;
   final String city;
