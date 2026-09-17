@@ -32,6 +32,25 @@ void main() {
         'https://desktattoo.app/intake/abcdef0123456789');
   });
 
+  test('supabaseConfigured accepts live url and anon key', () {
+    const AppConfig config = AppConfig(
+      appName: 'DesK Tattoo',
+      env: AppEnv.prod,
+      apiBaseUrl: 'https://api.example.com',
+      apiTimeout: Duration(seconds: 15),
+      appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
+      playStoreUrl: 'https://play.google.com/store/apps/details?id=x',
+      appDownloadUrl: 'https://desktattoo.app/get/x',
+      supabaseUrl: 'https://wklmcvrsizxohmiklocs.supabase.co',
+      supabaseAnonKey: 'sb_publishable_live_test_key_value',
+      stripePublishableKey: '',
+      stripeProductId: 'prod_VFctn7oeEEtvpK',
+      monthlyPriceLabel: '19,99 €',
+      webAppUrl: 'https://moonlit-medovik-0ae9fb.netlify.app',
+    );
+    expect(config.supabaseConfigured, isTrue);
+  });
+
   test('legacy artist is entitled as admin', () {
     const Artist artist = Artist(
       id: '1',

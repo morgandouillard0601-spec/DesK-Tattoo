@@ -9,7 +9,7 @@
   NODE_VERSION = "20"
   APP_ENV = "prod"
   SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY"
-  SECRETS_SCAN_OMIT_PATHS = ".env,build/web"
+  SECRETS_SCAN_OMIT_PATHS = ".env,build/web,.dart_defines.json"
 
 # App Flutter en single-page : tout chemin inconnu renvoie index.html.
 # Netlify sert d'abord les fichiers existants, les assets ne sont donc pas

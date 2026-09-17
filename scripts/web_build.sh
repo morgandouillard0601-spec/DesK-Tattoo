@@ -34,6 +34,21 @@ APP_STORE_URL=${APP_STORE_URL:-https://apps.apple.com/app/idXXXXXXXXX}
 PLAY_STORE_URL=${PLAY_STORE_URL:-https://play.google.com/store/apps/details?id=com.desktattoo.desk_tattoo}
 EOF
 
+# .env est dans .gitignore : Flutter ne l'embarque pas dans le bundle web.
+# On passe les clés via dart-define (compilées dans le JS).
+python3 - <<'PY'
+import json, os, pathlib
+pathlib.Path(".dart_defines.json").write_text(json.dumps({
+    "SUPABASE_URL": os.environ.get("SUPABASE_URL", ""),
+    "SUPABASE_ANON_KEY": os.environ.get("SUPABASE_ANON_KEY", ""),
+    "WEB_APP_URL": os.environ.get("WEB_APP_URL")
+        or os.environ.get("DEPLOY_PRIME_URL")
+        or os.environ.get("URL")
+        or "",
+    "APP_ENV": os.environ.get("APP_ENV", "prod"),
+}))
+PY
+
 FLUTTER_DIR="${FLUTTER_ROOT:-$ROOT/.flutter-sdk}"
 if [ ! -x "$FLUTTER_DIR/bin/flutter" ]; then
   echo "==> Cloning Flutter SDK (stable)"
@@ -48,6 +63,8 @@ git config --global --add safe.directory "$FLUTTER_DIR" || true
 flutter --version
 flutter config --no-analytics --enable-web
 flutter pub get
-flutter build web --release --base-href / -t lib/web_intake_main.dart
+flutter build web --release --base-href / -t lib/web_intake_main.dart \
+  --dart-define-from-file=.dart_defines.json
+rm -f .dart_defines.json
 
 echo "==> Web build ready in build/web"

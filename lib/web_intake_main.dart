@@ -15,7 +15,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
 
-  await dotenv.load(fileName: '.env');
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    // Netlify : .env est gitignoré, donc absent du bundle. Les clés
+    // passent par --dart-define (voir scripts/web_build.sh).
+  }
   await initializeDateFormatting('fr_FR');
   ParisClock.init();
 

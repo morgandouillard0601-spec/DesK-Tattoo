@@ -22,36 +22,95 @@ class AppConfig {
   });
 
   factory AppConfig.fromEnv() {
-    final String envName = dotenv.maybeGet('APP_ENV') ?? 'dev';
+    String read(String key, String fromDefine) {
+      String fromFile = '';
+      try {
+        fromFile = (dotenv.maybeGet(key) ?? '').trim();
+      } catch (_) {}
+      if (fromFile.isNotEmpty) return fromFile;
+      return fromDefine.trim();
+    }
+
+    final String envName = read('APP_ENV', const String.fromEnvironment('APP_ENV'));
     final AppEnv env = AppEnv.values.firstWhere(
-      (AppEnv e) => e.name == envName,
+      (AppEnv e) => e.name == (envName.isEmpty ? 'dev' : envName),
       orElse: () => AppEnv.dev,
     );
 
     final int timeoutMs = int.tryParse(
-          dotenv.maybeGet('API_TIMEOUT_MS') ?? '',
+          read('API_TIMEOUT_MS', const String.fromEnvironment('API_TIMEOUT_MS')),
         ) ??
         15000;
 
     return AppConfig(
-      appName: dotenv.maybeGet('APP_NAME') ?? 'DesK Tattoo',
+      appName: read('APP_NAME', const String.fromEnvironment('APP_NAME')).isEmpty
+          ? 'DesK Tattoo'
+          : read('APP_NAME', const String.fromEnvironment('APP_NAME')),
       env: env,
-      apiBaseUrl:
-          dotenv.maybeGet('API_BASE_URL') ?? 'https://api.example.com',
+      apiBaseUrl: read(
+                'API_BASE_URL',
+                const String.fromEnvironment('API_BASE_URL'),
+              ).isEmpty
+          ? 'https://api.example.com'
+          : read('API_BASE_URL', const String.fromEnvironment('API_BASE_URL')),
       apiTimeout: Duration(milliseconds: timeoutMs),
-      appStoreUrl: dotenv.maybeGet('APP_STORE_URL') ??
-          'https://apps.apple.com/app/idXXXXXXXXX',
-      playStoreUrl: dotenv.maybeGet('PLAY_STORE_URL') ??
-          'https://play.google.com/store/apps/details?id=com.desktattoo.desk_tattoo',
-      appDownloadUrl: dotenv.maybeGet('APP_DOWNLOAD_URL') ??
-          'https://desktattoo.app/get/dt-get-7f3a9c2e',
-      supabaseUrl: dotenv.maybeGet('SUPABASE_URL') ?? '',
-      supabaseAnonKey: dotenv.maybeGet('SUPABASE_ANON_KEY') ?? '',
-      stripePublishableKey: dotenv.maybeGet('STRIPE_PUBLISHABLE_KEY') ?? '',
-      stripeProductId:
-          dotenv.maybeGet('STRIPE_PRODUCT_ID') ?? 'prod_VFctn7oeEEtvpK',
-      monthlyPriceLabel: dotenv.maybeGet('STRIPE_PRICE_LABEL') ?? '19,99 €',
-      webAppUrl: _resolveWebAppUrl(dotenv.maybeGet('WEB_APP_URL')),
+      appStoreUrl: read(
+                'APP_STORE_URL',
+                const String.fromEnvironment('APP_STORE_URL'),
+              ).isEmpty
+          ? 'https://apps.apple.com/app/idXXXXXXXXX'
+          : read('APP_STORE_URL', const String.fromEnvironment('APP_STORE_URL')),
+      playStoreUrl: read(
+                'PLAY_STORE_URL',
+                const String.fromEnvironment('PLAY_STORE_URL'),
+              ).isEmpty
+          ? 'https://play.google.com/store/apps/details?id=com.desktattoo.desk_tattoo'
+          : read(
+              'PLAY_STORE_URL',
+              const String.fromEnvironment('PLAY_STORE_URL'),
+            ),
+      appDownloadUrl: read(
+                'APP_DOWNLOAD_URL',
+                const String.fromEnvironment('APP_DOWNLOAD_URL'),
+              ).isEmpty
+          ? 'https://desktattoo.app/get/dt-get-7f3a9c2e'
+          : read(
+              'APP_DOWNLOAD_URL',
+              const String.fromEnvironment('APP_DOWNLOAD_URL'),
+            ),
+      supabaseUrl: read(
+        'SUPABASE_URL',
+        const String.fromEnvironment('SUPABASE_URL'),
+      ),
+      supabaseAnonKey: read(
+        'SUPABASE_ANON_KEY',
+        const String.fromEnvironment('SUPABASE_ANON_KEY'),
+      ),
+      stripePublishableKey: read(
+        'STRIPE_PUBLISHABLE_KEY',
+        const String.fromEnvironment('STRIPE_PUBLISHABLE_KEY'),
+      ),
+      stripeProductId: read(
+                'STRIPE_PRODUCT_ID',
+                const String.fromEnvironment('STRIPE_PRODUCT_ID'),
+              ).isEmpty
+          ? 'prod_VFctn7oeEEtvpK'
+          : read(
+              'STRIPE_PRODUCT_ID',
+              const String.fromEnvironment('STRIPE_PRODUCT_ID'),
+            ),
+      monthlyPriceLabel: read(
+                'STRIPE_PRICE_LABEL',
+                const String.fromEnvironment('STRIPE_PRICE_LABEL'),
+              ).isEmpty
+          ? '19,99 €'
+          : read(
+              'STRIPE_PRICE_LABEL',
+              const String.fromEnvironment('STRIPE_PRICE_LABEL'),
+            ),
+      webAppUrl: _resolveWebAppUrl(
+        read('WEB_APP_URL', const String.fromEnvironment('WEB_APP_URL')),
+      ),
     );
   }
 
