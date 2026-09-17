@@ -10,14 +10,13 @@ cd "$ROOT"
 # `DEPLOY_PRIME_URL`). On s'en sert par défaut pour le lien du QR d'accueil.
 DEFAULT_WEB_APP_URL="${WEB_APP_URL:-${DEPLOY_PRIME_URL:-${URL:-}}}"
 
-# Ne jamais echo SUPABASE_URL : marquée secrète sur Netlify, elle ferait
-# échouer le secret scanning si elle apparaissait dans les logs.
-: "${SUPABASE_URL:?Missing SUPABASE_URL — définis-la en secret Netlify (Contains secret values).}"
-: "${SUPABASE_ANON_KEY:=sb_publishable_JE9VvcRf_pEcOT6TI4G2yg_gFVQgn5u}"
+# Ne jamais echo ces valeurs : le secret scanning Netlify échoue sinon.
+: "${SUPABASE_URL:?Missing SUPABASE_URL — variable d'environnement Netlify.}"
+: "${SUPABASE_ANON_KEY:?Missing SUPABASE_ANON_KEY — variable d'environnement Netlify.}"
 
 echo "==> Writing .env for Flutter assets"
 echo "    WEB_APP_URL=${DEFAULT_WEB_APP_URL:-<vide>}"
-echo "    SUPABASE_URL is set (value omitted)"
+echo "    SUPABASE_URL / SUPABASE_ANON_KEY are set (values omitted)"
 cat > .env <<EOF
 APP_NAME=${APP_NAME:-DesK Tattoo}
 APP_ENV=${APP_ENV:-prod}
