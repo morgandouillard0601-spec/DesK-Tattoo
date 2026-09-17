@@ -10,15 +10,22 @@ cd "$ROOT"
 # `DEPLOY_PRIME_URL`). On s'en sert par défaut pour le lien du QR d'accueil.
 DEFAULT_WEB_APP_URL="${WEB_APP_URL:-${DEPLOY_PRIME_URL:-${URL:-}}}"
 
+# Ne jamais echo SUPABASE_URL : marquée secrète sur Netlify, elle ferait
+# échouer le secret scanning si elle apparaissait dans les logs.
+: "${SUPABASE_URL:?Missing SUPABASE_URL — définis-la en secret Netlify (Contains secret values).}"
+: "${SUPABASE_ANON_KEY:=sb_publishable_JE9VvcRf_pEcOT6TI4G2yg_gFVQgn5u}"
+
 echo "==> Writing .env for Flutter assets"
+echo "    WEB_APP_URL=${DEFAULT_WEB_APP_URL:-<vide>}"
+echo "    SUPABASE_URL is set (value omitted)"
 cat > .env <<EOF
 APP_NAME=${APP_NAME:-DesK Tattoo}
 APP_ENV=${APP_ENV:-prod}
 API_BASE_URL=${API_BASE_URL:-https://api.example.com}
 API_TIMEOUT_MS=${API_TIMEOUT_MS:-15000}
 WEB_APP_URL=${DEFAULT_WEB_APP_URL}
-SUPABASE_URL=${SUPABASE_URL:?Missing SUPABASE_URL}
-SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:?Missing SUPABASE_ANON_KEY}
+SUPABASE_URL=${SUPABASE_URL}
+SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
 STRIPE_PRODUCT_ID=${STRIPE_PRODUCT_ID:-prod_VFctn7oeEEtvpK}
 STRIPE_PRICE_ID=${STRIPE_PRICE_ID:-}

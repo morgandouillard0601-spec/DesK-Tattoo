@@ -3,8 +3,12 @@
   publish = "build/web"
 
 # Le clone du SDK Flutter demande un peu de temps au premier build.
+# SUPABASE_URL est un secret Netlify (dashboard / CLI). Le scan ne doit pas
+# échouer parce que Flutter l'injecte dans le bundle client (.env asset).
 [build.environment]
   NODE_VERSION = "20"
+  APP_ENV = "prod"
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL"
 
 # App Flutter en single-page : tout chemin inconnu renvoie index.html.
 # Netlify sert d'abord les fichiers existants, les assets ne sont donc pas
