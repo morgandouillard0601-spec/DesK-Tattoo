@@ -119,14 +119,27 @@ set search_path = public
 as $$
 declare
   new_token text := encode(gen_random_bytes(16), 'hex');
+  uid uuid := auth.uid();
 begin
+  if uid is null then
+    raise exception 'Non authentifié';
+  end if;
+
   update public.artists
   set public_intake_token = new_token,
       updated_at = now()
-  where id = auth.uid();
+  where id = uid;
 
   if not found then
-    raise exception 'Aucun profil artiste pour cet utilisateur';
+    insert into public.artists (id, email, public_intake_token)
+    values (
+      uid,
+      coalesce((select email from auth.users where id = uid), ''),
+      new_token
+    )
+    on conflict (id) do update
+      set public_intake_token = excluded.public_intake_token,
+          updated_at = now();
   end if;
 
   return new_token;

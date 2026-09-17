@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/network/supabase_client.dart';
 import '../../../core/storage/preferences_service.dart';
 import '../../../shared/utils/id_generator.dart';
+import '../../intake/domain/intake_qr_link.dart';
 import '../domain/artist.dart';
 
 /// Compte local déjà utilisé — on conserve le profil studio d’origine.
@@ -37,7 +38,10 @@ class ArtistNotifier extends Notifier<Artist> {
   );
 
   Future<void> ensureLegacyMorganProfile() async {
-    await _prefs.writeArtistProfile(legacyMorganProfile);
+    final Artist? stored = _prefs.readArtistProfile(kLegacyAccountEmail);
+    if (stored == null) {
+      await _prefs.writeArtistProfile(legacyMorganProfile);
+    }
     await _prefs.markLegacyMorganProfileRestored();
   }
 
@@ -45,17 +49,23 @@ class ArtistNotifier extends Notifier<Artist> {
     final String normalized = email.trim().toLowerCase();
     if (normalized == kLegacyAccountEmail) {
       await ensureLegacyMorganProfile();
-      Artist legacy = legacyMorganProfile;
-      if (remoteId != null && remoteId.isNotEmpty) {
-        legacy = legacy.copyWith(id: remoteId);
+      Artist legacy =
+          _prefs.readArtistProfile(normalized) ?? legacyMorganProfile;
+      final String? uuid = _uuidOrNull(remoteId) ?? _uuidOrNull(legacy.id);
+      if (uuid != null) {
+        legacy = legacy.copyWith(id: uuid);
       }
       state = legacy;
       // Try refresh from Supabase without losing admin entitlement.
-      final Artist? remote = await _fetchRemote(remoteId ?? '');
+      final Artist? remote = await _fetchRemote(uuid ?? '');
       if (remote != null) {
         state = remote.copyWith(
           role: ArtistRole.admin,
           subscriptionStatus: SubscriptionStatus.active,
+          publicIntakeToken: _preferredIntakeToken(
+            remote.publicIntakeToken,
+            legacy.publicIntakeToken,
+          ),
         );
         await _prefs.writeArtistProfile(state);
       }
@@ -93,28 +103,99 @@ class ArtistNotifier extends Notifier<Artist> {
 
   /// Régénère le token du QR d'accueil client : les QR déjà imprimés cessent
   /// de fonctionner. Retourne le nouveau token.
+  ///
+  /// Si la RPC Supabase n’est pas encore déployée (ou pas de ligne `artists`),
+  /// le token est quand même créé en local pour afficher le QR.
   Future<String> rotateIntakeToken() async {
+    String token = IntakeQrLink.generateToken();
     final SupabaseClient? client = _supabase;
-    if (client == null) {
-      throw StateError('Supabase non configuré');
+    final String? uid = _uuidOrNull(client?.auth.currentUser?.id);
+
+    if (client != null && uid != null) {
+      try {
+        final dynamic result = await client.rpc<dynamic>('rotate_intake_token');
+        final String rpcToken = result?.toString().trim() ?? '';
+        if (IntakeQrLink.isValidToken(rpcToken)) {
+          token = rpcToken;
+        } else {
+          await _persistIntakeTokenRemote(client, uid, token);
+        }
+      } catch (_) {
+        try {
+          await _persistIntakeTokenRemote(client, uid, token);
+        } catch (_) {
+          // Le QR local reste utilisable même si le cloud n’a pas la colonne.
+        }
+      }
+      if (state.id != uid) {
+        state = state.copyWith(id: uid);
+      }
     }
-    final Object? result = await client.rpc<Object?>('rotate_intake_token');
-    final String token = result?.toString() ?? '';
-    if (token.isEmpty) {
-      throw StateError('Rotation du lien impossible');
-    }
+
     state = state.copyWith(publicIntakeToken: token);
     await _prefs.writeArtistProfile(state);
     return token;
   }
 
+  Future<void> _persistIntakeTokenRemote(
+    SupabaseClient client,
+    String uid,
+    String token,
+  ) async {
+    final String now = DateTime.now().toUtc().toIso8601String();
+    final Map<String, dynamic> row = <String, dynamic>{
+      'id': uid,
+      'email': state.email,
+      'first_name': state.firstName,
+      'last_name': state.lastName,
+      'phone': state.phone,
+      'studio_name': state.studioName,
+      'address': state.address,
+      'city': state.city,
+      'siret': state.siret,
+      'specialties': state.specialties,
+      'experience_years': state.experienceYears,
+      'bio': state.bio,
+      'instagram': state.instagram,
+      'public_intake_token': token,
+      'updated_at': now,
+    };
+    try {
+      await client.from('artists').upsert(row);
+    } catch (_) {
+      await client.from('artists').update(<String, dynamic>{
+        'public_intake_token': token,
+        'updated_at': now,
+      }).eq('id', uid);
+    }
+  }
+
+  String? _uuidOrNull(String? value) {
+    if (value == null || value.isEmpty || value.startsWith('artist_')) {
+      return null;
+    }
+    return value;
+  }
+
+  String? _preferredIntakeToken(String? remote, String? local) {
+    if (remote != null && IntakeQrLink.isValidToken(remote)) return remote;
+    if (local != null && IntakeQrLink.isValidToken(local)) return local;
+    return remote ?? local;
+  }
+
   Future<void> refreshFromRemote() async {
     final String id = state.id;
     if (id.isEmpty || id.startsWith('artist_')) return;
+    final String? localToken = state.publicIntakeToken;
     final Artist? remote = await _fetchRemote(id);
     if (remote != null) {
-      state = remote;
-      await _prefs.writeArtistProfile(remote);
+      state = remote.copyWith(
+        publicIntakeToken: _preferredIntakeToken(
+          remote.publicIntakeToken,
+          localToken,
+        ),
+      );
+      await _prefs.writeArtistProfile(state);
     }
   }
 

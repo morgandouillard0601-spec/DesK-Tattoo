@@ -1,0 +1,11 @@
+{
+  "name": "desk-tattoo-intake-qr",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node generate.mjs"
+  },
+  "dependencies": {
+    "@liquid-js/qr-code-styling-cli": "^1.4.0"
+  }
+}

@@ -1,5 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import '../../features/intake/domain/intake_qr_link.dart';
+
 enum AppEnv { dev, staging, prod }
 
 class AppConfig {
@@ -85,7 +87,11 @@ class AppConfig {
   final String webAppUrl;
 
   /// Lien public du formulaire d'accueil client pour un token donné.
-  String intakeUrl(String token) => '$webAppUrl/intake/$token';
+  /// Toujours `{WEB_APP_URL}/intake/{token}` — même chemin que le site Netlify.
+  String intakeUrl(String token) => IntakeQrLink.build(
+        webAppUrl: webAppUrl,
+        token: token,
+      );
 
   bool get isDev => env == AppEnv.dev;
   bool get isProd => env == AppEnv.prod;

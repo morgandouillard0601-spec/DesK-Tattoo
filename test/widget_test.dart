@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:desk_tattoo/core/config/app_config.dart';
 import 'package:desk_tattoo/features/clients/domain/client.dart';
+import 'package:desk_tattoo/features/intake/domain/intake_qr_link.dart';
 import 'package:desk_tattoo/features/planning/domain/appointment.dart';
 import 'package:desk_tattoo/features/profile/domain/artist.dart';
 
@@ -27,7 +28,8 @@ void main() {
     expect(config.isProd, isFalse);
     expect(config.appName, 'DesK Tattoo');
     expect(config.supabaseConfigured, isFalse);
-    expect(config.intakeUrl('abc'), 'https://desktattoo.app/intake/abc');
+    expect(config.intakeUrl('abcdef0123456789'),
+        'https://desktattoo.app/intake/abcdef0123456789');
   });
 
   test('legacy artist is entitled as admin', () {
@@ -122,5 +124,28 @@ void main() {
     expect(client.source, ClientSource.manual);
     expect(client.isFromIntake, isFalse);
     expect(client.addressLine, isEmpty);
+  });
+
+  test('intake QR encodes the web form of that account only', () {
+    const String token = 'a1b2c3d4e5f60789';
+    final String url = IntakeQrLink.build(
+      webAppUrl: 'https://moonlit-medovik-0ae9fb.netlify.app/',
+      token: token,
+    );
+    expect(url, 'https://moonlit-medovik-0ae9fb.netlify.app/intake/$token');
+    expect(IntakeQrLink.isValid(url, expectedToken: token), isTrue);
+    expect(IntakeQrLink.tokenOf(url), token);
+    expect(
+      IntakeQrLink.isValid(url, expectedToken: 'other-token-xx'),
+      isFalse,
+    );
+    expect(IntakeQrLink.isValid('https://evil.example/intake/$token'), isTrue);
+    expect(IntakeQrLink.isValid('https://site.netlify.app/login'), isFalse);
+  });
+
+  test('intake token generator is valid for the QR URL', () {
+    final String token = IntakeQrLink.generateToken();
+    expect(IntakeQrLink.isValidToken(token), isTrue);
+    expect(token.length, 32);
   });
 }

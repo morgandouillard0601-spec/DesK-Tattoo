@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/@liquid-js/qr-code-styling-cli/lib/schema.json",
+  "outputFilename": "{{token}}",
+  "data": "{{url}}",
+  "image": "../../assets/icon/app_icon.png",
+  "qrOptions": {
+    "errorCorrectionLevel": "Q"
+  },
+  "imageOptions": {
+    "hideBackgroundDots": true,
+    "imageSize": 0.22,
+    "margin": 4
+  },
+  "dotsOptions": {
+    "type": "rounded",
+    "color": "#5E1B89"
+  },
+  "cornersSquareOptions": {
+    "type": "extra-rounded",
+    "color": "#1A1224"
+  },
+  "cornersDotOptions": {
+    "type": "dot",
+    "color": "#5E1B89"
+  },
+  "backgroundOptions": {
+    "color": "#ffffff"
+  }
+}
