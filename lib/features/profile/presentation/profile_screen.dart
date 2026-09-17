@@ -13,7 +13,7 @@ import '../../planning/data/planning_repository.dart';
 import '../../planning/domain/appointment.dart';
 import '../data/artist_repository.dart';
 import '../domain/artist.dart';
-import 'widgets/app_store_qr_card.dart';
+import 'widgets/app_share_card.dart';
 import 'widgets/client_intake_qr_card.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -218,7 +218,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const AppStoreQrCard(),
+          const AppShareCard(),
           const SizedBox(height: 24),
           Text(
             'Préférences',

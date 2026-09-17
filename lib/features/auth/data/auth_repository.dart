@@ -176,12 +176,13 @@ class AuthRepository {
     final SupabaseClient client = _supabase!;
 
     // Crée le user Auth Supabase s’il n’existe pas encore (idempotent).
+    // On garde la session si le login réussit : sans elle, Clients / Planning
+    // restent vides (RLS filtrés sur auth.uid()).
     try {
       await client.auth.signInWithPassword(
         email: normalized,
         password: password,
       );
-      await client.auth.signOut();
     } catch (_) {
       try {
         await client.auth.signUp(
