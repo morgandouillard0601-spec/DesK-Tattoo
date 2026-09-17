@@ -64,3 +64,17 @@ export function asTrimmedString(value: unknown, maxLength = 200): string {
   if (typeof value !== 'string') return '';
   return value.trim().slice(0, maxLength);
 }
+
+/// Chiffres uniquement, format FR (`+33 6…` → `06…`) pour matcher une fiche.
+export function normalizePhone(value: string): string {
+  const compact = value.replace(/[^\d+]/g, '');
+  let digits = compact;
+  if (digits.startsWith('+33')) {
+    digits = `0${digits.slice(3)}`;
+  } else if (digits.startsWith('0033')) {
+    digits = `0${digits.slice(4)}`;
+  } else if (digits.startsWith('33') && digits.length >= 11) {
+    digits = `0${digits.slice(2)}`;
+  }
+  return digits.replace(/\D/g, '');
+}

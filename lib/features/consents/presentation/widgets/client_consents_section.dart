@@ -94,8 +94,11 @@ class ClientConsentsSection extends ConsumerWidget {
             }
             return Column(
               children: <Widget>[
-                for (final ClientConsent consent in list)
-                  _ConsentTile(consent: consent),
+                for (int i = 0; i < list.length; i++)
+                  _ConsentTile(
+                    consent: list[i],
+                    isLatest: i == 0,
+                  ),
               ],
             );
           },
@@ -106,9 +109,13 @@ class ClientConsentsSection extends ConsumerWidget {
 }
 
 class _ConsentTile extends ConsumerStatefulWidget {
-  const _ConsentTile({required this.consent});
+  const _ConsentTile({
+    required this.consent,
+    this.isLatest = false,
+  });
 
   final ClientConsent consent;
+  final bool isLatest;
 
   @override
   ConsumerState<_ConsentTile> createState() => _ConsentTileState();
@@ -185,11 +192,33 @@ class _ConsentTileState extends ConsumerState<_ConsentTile> {
             Icons.assignment_turned_in_rounded,
             color: theme.colorScheme.primary,
           ),
-          title: Text(
-            'Consentement signé',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+          title: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  'Consentement signé',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (widget.isLatest)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Plus récente',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
           ),
           subtitle: Text(
             '${AppDateFormat.dayLong(consent.signedAt)} · '

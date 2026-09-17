@@ -5,6 +5,7 @@ import {
   clientIpFrom,
   decodeBase64,
   isArtistEntitled,
+  normalizePhone,
   sha256Hex,
 } from '../_shared/intake.ts';
 
@@ -132,55 +133,52 @@ Deno.serve(async (req) => {
   }
 
   // -------------------------------------------------------------------------
-  // Client existant (même email ou même téléphone chez cet artiste) ou création
+  // Client existant (même email ou téléphone chez cet artiste) ou création.
+  // Si la fiche existe déjà : on n'y touche pas, seule la décharge est ajoutée.
   // -------------------------------------------------------------------------
+  const { data: roster, error: rosterError } = await admin
+    .from('clients')
+    .select('id, email, phone')
+    .eq('artist_id', artist.id);
+
+  if (rosterError) {
+    return jsonResponse({ error: 'Lecture de la clientèle impossible' }, 502);
+  }
+
+  const phoneKey = normalizePhone(phone);
   let clientId: string | null = null;
 
   if (email.length > 0) {
-    const { data: byEmail } = await admin
-      .from('clients')
-      .select('id')
-      .eq('artist_id', artist.id)
-      .eq('email', email)
-      .maybeSingle();
-    clientId = byEmail?.id ?? null;
+    const byEmail = (roster ?? []).find((row) => {
+      const stored = typeof row.email === 'string' ? row.email.trim().toLowerCase() : '';
+      return stored.length > 0 && stored === email;
+    });
+    clientId = typeof byEmail?.id === 'string' ? byEmail.id : null;
   }
 
-  if (!clientId && phone.length > 0) {
-    const { data: byPhone } = await admin
-      .from('clients')
-      .select('id')
-      .eq('artist_id', artist.id)
-      .eq('phone', phone)
-      .maybeSingle();
-    clientId = byPhone?.id ?? null;
+  if (!clientId && phoneKey.length > 0) {
+    const byPhone = (roster ?? []).find((row) => {
+      const stored = typeof row.phone === 'string' ? normalizePhone(row.phone) : '';
+      return stored.length > 0 && stored === phoneKey;
+    });
+    clientId = typeof byPhone?.id === 'string' ? byPhone.id : null;
   }
 
-  const clientPayload = {
-    artist_id: artist.id,
-    first_name: firstName,
-    last_name: lastName,
-    phone,
-    email,
-    address,
-    city,
-    postal_code: postalCode,
-    birth_date: birthDate,
-    source: 'intake',
-  };
-
-  if (clientId) {
-    const { error: updateError } = await admin
-      .from('clients')
-      .update(clientPayload)
-      .eq('id', clientId);
-    if (updateError) {
-      return jsonResponse({ error: 'Mise à jour de la fiche impossible' }, 502);
-    }
-  } else {
+  if (!clientId) {
     const { data: created, error: insertError } = await admin
       .from('clients')
-      .insert(clientPayload)
+      .insert({
+        artist_id: artist.id,
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        email,
+        address,
+        city,
+        postal_code: postalCode,
+        birth_date: birthDate,
+        source: 'intake',
+      })
       .select('id')
       .single();
     if (insertError || !created) {

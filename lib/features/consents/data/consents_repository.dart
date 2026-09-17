@@ -33,6 +33,28 @@ class ConsentsRepository {
         .toList(growable: false);
   }
 
+  /// Date de la décharge la plus récente, par fiche client de l'artiste.
+  Future<Map<String, DateTime>> latestSignedAtByClient() async {
+    final SupabaseClient? client = _client;
+    if (client == null) return const <String, DateTime>{};
+
+    final List<dynamic> rows = await client
+        .from('client_consents')
+        .select('client_id, signed_at')
+        .order('signed_at', ascending: false);
+
+    final Map<String, DateTime> latest = <String, DateTime>{};
+    for (final dynamic raw in rows) {
+      if (raw is! Map<String, dynamic>) continue;
+      final String id = raw['client_id'] as String? ?? '';
+      if (id.isEmpty || latest.containsKey(id)) continue;
+      final DateTime? at =
+          DateTime.tryParse(raw['signed_at']?.toString() ?? '');
+      if (at != null) latest[id] = at;
+    }
+    return latest;
+  }
+
   /// Télécharge le PDF archivé pour aperçu ou partage.
   Future<Uint8List> downloadPdf(String path) async {
     final SupabaseClient? client = _client;
@@ -64,4 +86,11 @@ final FutureProviderFamily<List<ClientConsent>, String> clientConsentsProvider =
     FutureProvider.family<List<ClientConsent>, String>(
   (Ref ref, String clientId) =>
       ref.watch(consentsRepositoryProvider).forClient(clientId),
+);
+
+/// Dernière décharge signée par fiche, pour la liste Clients.
+final FutureProvider<Map<String, DateTime>> latestConsentDatesProvider =
+    FutureProvider<Map<String, DateTime>>(
+  (Ref ref) =>
+      ref.watch(consentsRepositoryProvider).latestSignedAtByClient(),
 );

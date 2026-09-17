@@ -48,6 +48,6 @@ git config --global --add safe.directory "$FLUTTER_DIR" || true
 flutter --version
 flutter config --no-analytics --enable-web
 flutter pub get
-flutter build web --release --base-href /
+flutter build web --release --base-href / -t lib/web_intake_main.dart
 
 echo "==> Web build ready in build/web"

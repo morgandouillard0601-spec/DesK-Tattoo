@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../shared/utils/date_format.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../consents/data/consents_repository.dart';
 import '../data/clients_repository.dart';
 import '../domain/client.dart';
 import 'client_form_sheet.dart';
@@ -22,6 +23,8 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
   @override
   Widget build(BuildContext context) {
     final AsyncValue<List<Client>> clientsAsync = ref.watch(clientsProvider);
+    final Map<String, DateTime> latestConsents =
+        ref.watch(latestConsentDatesProvider).value ?? const <String, DateTime>{};
 
     return Scaffold(
       appBar: AppBar(
@@ -30,7 +33,10 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
           IconButton(
             tooltip: 'Actualiser',
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => ref.read(clientsProvider.notifier).refresh(),
+            onPressed: () {
+              ref.read(clientsProvider.notifier).refresh();
+              ref.invalidate(latestConsentDatesProvider);
+            },
           ),
         ],
       ),
@@ -68,7 +74,7 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
                 ),
               ],
             AsyncValue<List<Client>>(value: final List<Client>? all) =>
-              _buildList(all ?? const <Client>[]),
+              _buildList(all ?? const <Client>[], latestConsents),
           },
         ],
       ),
@@ -80,7 +86,10 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
     );
   }
 
-  List<Widget> _buildList(List<Client> all) {
+  List<Widget> _buildList(
+    List<Client> all,
+    Map<String, DateTime> latestConsents,
+  ) {
     final String q = _query.trim().toLowerCase();
     final List<Client> clients = q.isEmpty
         ? List<Client>.from(all)
@@ -115,8 +124,10 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
         sliver: SliverList.separated(
           itemCount: clients.length,
           separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (BuildContext context, int index) =>
-              _ClientTile(client: clients[index]),
+          itemBuilder: (BuildContext context, int index) => _ClientTile(
+            client: clients[index],
+            lastConsentAt: latestConsents[clients[index].id],
+          ),
         ),
       ),
     ];
@@ -134,9 +145,13 @@ class _ClientsScreenState extends ConsumerState<ClientsScreen> {
 }
 
 class _ClientTile extends StatelessWidget {
-  const _ClientTile({required this.client});
+  const _ClientTile({
+    required this.client,
+    this.lastConsentAt,
+  });
 
   final Client client;
+  final DateTime? lastConsentAt;
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +163,7 @@ class _ClientTile extends StatelessWidget {
     return Card(
       color: theme.colorScheme.surfaceContainerHigh,
       child: ListTile(
+        isThreeLine: lastConsentAt != null,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: ClientAvatar(client: client),
         title: Row(
@@ -185,6 +201,14 @@ class _ClientTile extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            if (lastConsentAt != null)
+              Text(
+                'Décharge · ${AppDateFormat.relativeDay(lastConsentAt!)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
           ],
         ),
         trailing: Column(
