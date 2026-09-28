@@ -7,7 +7,8 @@ Fichiers à exécuter dans **Supabase → SQL Editor**.
 1. Ouvre **`sql/00_all_in_one.sql`**, colle tout dans le SQL Editor, **Run**.
 2. Ouvre **`sql/06_onboarding_billing.sql`**, colle tout, **Run**.
 3. Ouvre **`sql/07_intake_consents.sql`**, colle tout, **Run**.
-4. Optionnel — **`sql/08_seed_demo.sql`** pour peupler un compte de test (adapte l'email en haut du fichier).
+4. Ouvre **`sql/09_account_deletion.sql`**, colle tout, **Run**.
+5. Optionnel — **`sql/08_seed_demo.sql`** pour peupler un compte de test (adapte l'email en haut du fichier).
 
 > Pas de `\i` : ça ne marche pas dans le dashboard web.
 
@@ -23,6 +24,7 @@ Fichiers à exécuter dans **Supabase → SQL Editor**.
 | 6 | `sql/06_onboarding_billing.sql` | Adresse / SIRET / Stripe / admin |
 | 7 | `sql/07_intake_consents.sql` | QR d'accueil, fiche client publique, contrats signés |
 | 8 | `sql/08_seed_demo.sql` | Données de démo (optionnel) |
+| 9 | `sql/09_account_deletion.sql` | RPC `delete_own_account` (suppression de compte) |
 
 ## Edge Functions (Stripe)
 
@@ -38,6 +40,20 @@ supabase functions deploy create-checkout-session
 supabase functions deploy stripe-webhook --no-verify-jwt
 supabase functions deploy subscription-status
 ```
+
+## Edge Function (suppression de compte)
+
+Obligatoire pour l'App Store (règle 5.1.1(v)) : le tatoueur supprime son compte
+depuis **Profil → Compte → Supprimer mon compte**. La function annule
+l'abonnement Stripe, purge le bucket `consents` puis supprime l'utilisateur Auth
+(les tables métier suivent en cascade).
+
+```bash
+supabase functions deploy delete-account
+```
+
+Le filet de sécurité `sql/09_account_deletion.sql` doit aussi être exécuté :
+l'app l'appelle si la function n'est pas joignable.
 
 ## Edge Functions (accueil client par QR)
 

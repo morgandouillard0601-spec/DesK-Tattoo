@@ -15,6 +15,8 @@ import '../data/artist_repository.dart';
 import '../domain/artist.dart';
 import 'widgets/app_share_card.dart';
 import 'widgets/client_intake_qr_card.dart';
+import 'widgets/delete_account_section.dart';
+import 'widgets/profile_edit_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -44,13 +46,9 @@ class ProfileScreen extends ConsumerWidget {
         title: const Text('Profil'),
         actions: <Widget>[
           IconButton(
-            tooltip: 'Modifier',
+            tooltip: 'Modifier mes informations',
             icon: const Icon(Icons.edit_rounded),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Édition — bientôt')),
-              );
-            },
+            onPressed: () => _editProfile(context),
           ),
         ],
       ),
@@ -232,6 +230,14 @@ class ProfileScreen extends ConsumerWidget {
             child: Column(
               children: <Widget>[
                 ListTile(
+                  leading: const Icon(Icons.manage_accounts_rounded),
+                  title: const Text('Mes informations'),
+                  subtitle: const Text('Identité, studio, SIRET, spécialités'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _editProfile(context),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: Icon(_iconForMode(themeMode)),
                   title: const Text('Thème'),
                   subtitle: Text(_labelForMode(themeMode)),
@@ -272,9 +278,27 @@ class ProfileScreen extends ConsumerWidget {
             icon: const Icon(Icons.logout_rounded),
             label: const Text('Se déconnecter'),
           ),
+          const SizedBox(height: 24),
+          Text(
+            'Compte',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const DeleteAccountSection(),
         ],
       ),
     );
+  }
+
+  Future<void> _editProfile(BuildContext context) async {
+    final bool? saved = await showProfileEditSheet(context);
+    if (saved == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informations mises à jour')),
+      );
+    }
   }
 
   IconData _iconForMode(ThemeMode mode) => switch (mode) {

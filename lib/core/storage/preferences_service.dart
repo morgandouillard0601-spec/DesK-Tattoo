@@ -51,11 +51,26 @@ class PreferencesService {
     );
   }
 
-  bool get legacyMorganProfileRestored =>
-      _prefs.getBool('legacy_profile_restored_morgandesk_v1') ?? false;
+  /// Les versions précédentes ouvraient d'office une session sur le compte
+  /// studio historique. Ce drapeau garantit qu'on ne la ferme qu'une fois.
+  bool get legacySessionPurged =>
+      _prefs.getBool(_legacySessionPurgedKey) ?? false;
 
-  Future<bool> markLegacyMorganProfileRestored() =>
-      _prefs.setBool('legacy_profile_restored_morgandesk_v1', true);
+  Future<bool> markLegacySessionPurged() =>
+      _prefs.setBool(_legacySessionPurgedKey, true);
+
+  static const String _legacySessionPurgedKey = 'legacy_session_purged_v2';
+
+  Future<void> deleteAllArtistProfiles() async {
+    final List<String> keys = _prefs
+        .getKeys()
+        .where((String key) => key.startsWith(_artistProfilePrefix))
+        .toList();
+    for (final String key in keys) {
+      await _prefs.remove(key);
+    }
+  }
+
 }
 
 final Provider<SharedPreferences> sharedPreferencesProvider =

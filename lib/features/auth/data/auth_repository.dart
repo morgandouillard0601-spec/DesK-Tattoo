@@ -6,9 +6,6 @@ import '../../../core/storage/secure_storage_service.dart';
 import '../../profile/data/artist_repository.dart';
 import '../domain/auth_user.dart';
 
-/// Mot de passe du compte studio legacy (admin / bypass paywall).
-const String kLegacyAccountPassword = 'Erachid93';
-
 /// Hybrid auth: Supabase when configured, otherwise local secure storage.
 class AuthRepository {
   AuthRepository(this._storage, this._supabase);
@@ -124,25 +121,22 @@ class AuthRepository {
     throw AuthException('Email ou mot de passe incorrect.');
   }
 
+  /// Repli hors ligne : seuls les identifiants déjà enregistrés sur l'appareil
+  /// ouvrent une session locale.
   Future<AuthUser?> _tryLocalLogin({
     required String email,
     required String password,
   }) async {
-    final bool isLegacy = email == kLegacyAccountEmail &&
-        password == kLegacyAccountPassword;
-
     final String? storedEmail = await _storage.readAuthEmail();
     final String? storedPassword = await _storage.readAuthPassword();
-    final bool matchesStored = storedEmail == email &&
-        storedPassword != null &&
-        storedPassword == password;
+    if (storedEmail != email ||
+        storedPassword == null ||
+        storedPassword != password) {
+      return null;
+    }
 
-    if (!isLegacy && !matchesStored) return null;
-
-    await _storage.writeAuthEmail(email);
-    await _storage.writeAuthPassword(password);
     await _storage.writeAuthToken('local_$email');
-    return AuthUser(email: email, id: isLegacy ? 'artist_morgan_desk' : null);
+    return AuthUser(email: email);
   }
 
   Future<void> logout() async {
@@ -152,59 +146,75 @@ class AuthRepository {
     await _storage.clearSession();
   }
 
-  Future<void> ensureLegacyAccount({
-    required String email,
-    required String password,
-  }) async {
-    final String normalized = email.trim().toLowerCase();
-    final String? existingEmail = await _storage.readAuthEmail();
-    final String? existingPassword = await _storage.readAuthPassword();
-
-    // Ne remplace pas un autre compte local déjà présent.
-    if (existingEmail != null &&
-        existingEmail.isNotEmpty &&
-        existingEmail != normalized) {
-      // Toujours garantir le mdp legacy en parallèle pour le fallback login.
-    } else if (existingEmail != normalized || existingPassword != password) {
-      await _storage.writeAuthEmail(normalized);
-      await _storage.writeAuthPassword(password);
-    } else {
-      await _storage.writeAuthPassword(password);
+  /// Migration unique : les versions précédentes connectaient d'office le
+  /// compte studio historique sur chaque appareil. Sa session et ses
+  /// identifiants sont effacés localement pour qu'aucun autre tatoueur ne
+  /// retombe dessus. Le compte lui-même n'est pas modifié.
+  Future<void> clearLegacyAutoSession() async {
+    final String? storedEmail = await _storage.readAuthEmail();
+    final String? sessionEmail =
+        _supabase?.auth.currentUser?.email?.toLowerCase();
+    if (storedEmail != kLegacyAccountEmail &&
+        sessionEmail != kLegacyAccountEmail) {
+      return;
     }
 
-    if (!usesSupabase) return;
-    final SupabaseClient client = _supabase!;
-
-    // Crée le user Auth Supabase s’il n’existe pas encore (idempotent).
-    // On garde la session si le login réussit : sans elle, Clients / Planning
-    // restent vides (RLS filtrés sur auth.uid()).
-    try {
-      await client.auth.signInWithPassword(
-        email: normalized,
-        password: password,
-      );
-    } catch (_) {
+    if (usesSupabase) {
       try {
-        await client.auth.signUp(
-          email: normalized,
-          password: password,
-          data: <String, dynamic>{
-            'first_name': 'Morgan',
-            'last_name': 'Desk',
-            'phone': '+33 6 00 00 00 00',
-            'studio_name': 'DesK Tattoo Studio',
-            'specialties': <String>['Black & Grey', 'Réalisme', 'Géométrique'],
-            'experience_years': '6',
-            'bio':
-                'Tatoueur depuis 2020, spécialisé dans le réalisme et le black & grey.',
-            'instagram': '@desk.tattoo',
-          },
-        );
-        await client.auth.signOut();
+        await _supabase!.auth.signOut();
       } catch (_) {
-        // Email déjà pris / confirmation requise → fallback local au login.
+        // Hors ligne : les identifiants locaux suffisent à couper l'accès.
       }
     }
+    await _storage.clearCredentials();
+  }
+
+  /// Supprime définitivement le compte et les données du studio.
+  ///
+  /// Voie principale : l'Edge Function `delete-account` (elle annule aussi
+  /// l'abonnement Stripe et purge les contrats stockés). Si elle n'est pas
+  /// joignable, on retombe sur la RPC `delete_own_account`. Dans les deux cas
+  /// les identifiants locaux sont effacés à la fin.
+  Future<void> deleteAccount() async {
+    if (usesSupabase && _supabase!.auth.currentUser != null) {
+      Object? remoteError;
+      try {
+        final FunctionResponse res = await _supabase.functions.invoke(
+          'delete-account',
+          method: HttpMethod.post,
+        );
+        if (res.status >= 400) {
+          remoteError = res.data is Map && (res.data as Map)['error'] != null
+              ? (res.data as Map)['error']
+              : 'Suppression impossible (${res.status}).';
+        }
+      } catch (e) {
+        remoteError = e;
+      }
+
+      if (remoteError != null) {
+        try {
+          await _supabase.rpc<dynamic>('delete_own_account');
+          remoteError = null;
+        } catch (e) {
+          remoteError = e;
+        }
+      }
+
+      if (remoteError != null) {
+        throw AuthException(
+          'Suppression impossible pour le moment. Vérifie ta connexion puis réessaie.',
+        );
+      }
+
+      try {
+        await _supabase.auth.signOut();
+      } catch (_) {
+        // Le compte n'existe plus : la session locale est de toute façon morte.
+      }
+    }
+
+    await _storage.clearAll();
   }
 
   String _mapSupabaseError(Object e) {

@@ -6,6 +6,7 @@ import '../../../core/config/providers.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../profile/data/artist_repository.dart';
 import '../../profile/domain/artist.dart';
+import '../../profile/presentation/widgets/delete_account_section.dart';
 import '../data/billing_repository.dart';
 
 class PaywallScreen extends ConsumerStatefulWidget {
@@ -215,6 +216,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                   ? null
                                   : () => ref.read(authProvider.notifier).logout(),
                               child: const Text('Se déconnecter'),
+                            ),
+                            // Sans abonnement l'app se limite à cet écran :
+                            // la suppression du compte doit rester accessible.
+                            TextButton(
+                              onPressed: _busy
+                                  ? null
+                                  : () => showDeleteAccountDialog(context),
+                              style: TextButton.styleFrom(
+                                foregroundColor: theme.colorScheme.error,
+                              ),
+                              child: const Text('Supprimer mon compte'),
                             ),
                           ],
                         ),

@@ -1,8 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/storage/preferences_service.dart';
+import '../../accounting/data/accounting_repository.dart';
 import '../../billing/data/billing_repository.dart';
+import '../../clients/data/clients_repository.dart';
+import '../../consents/data/consents_repository.dart';
+import '../../planning/data/planning_repository.dart';
 import '../../profile/data/artist_repository.dart';
+import '../../stock/data/stock_repository.dart';
 import '../../profile/domain/artist.dart';
 import '../data/auth_repository.dart';
 import '../domain/auth_user.dart';
@@ -61,30 +67,21 @@ class AuthNotifier extends Notifier<AuthState> {
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
+  /// Au lancement : on reprend la session du dernier compte connecté, sinon
+  /// l'écran de connexion / création s'affiche.
   Future<void> bootstrap() async {
     state = const AuthState(status: AuthStatus.unknown);
 
-    // Compte déjà utilisé : local + tentative création Auth Supabase.
-    await _repo.ensureLegacyAccount(
-      email: kLegacyAccountEmail,
-      password: kLegacyAccountPassword,
-    );
-    await ref.read(artistProvider.notifier).ensureLegacyMorganProfile();
+    final PreferencesService prefs = ref.read(preferencesServiceProvider);
+    if (!prefs.legacySessionPurged) {
+      await _repo.clearLegacyAutoSession();
+      await prefs.markLegacySessionPurged();
+    }
 
     final bool hasAccount = await _repo.hasLocalAccount();
-    AuthUser? user = await _repo.restoreSession();
+    final AuthUser? user = await _repo.restoreSession();
 
-    // Auto-connexion legacy si aucune session (Supabase ou local).
-    if (user == null) {
-      try {
-        user = await _repo.login(
-          email: kLegacyAccountEmail,
-          password: kLegacyAccountPassword,
-        );
-      } catch (_) {
-        user = null;
-      }
-    }
+    _resetDataProviders();
 
     if (user != null) {
       await ref.read(artistProvider.notifier).loadForEmail(
@@ -131,6 +128,7 @@ class AuthNotifier extends Notifier<AuthState> {
         'instagram': profile.instagram,
       },
     );
+    _resetDataProviders();
     await ref.read(artistProvider.notifier).createFromRegistration(
           email: user.email,
           firstName: profile.firstName,
@@ -165,6 +163,7 @@ class AuthNotifier extends Notifier<AuthState> {
       email: email,
       password: password,
     );
+    _resetDataProviders();
     await ref.read(artistProvider.notifier).loadForEmail(
           user.email,
           remoteId: user.id,
@@ -215,6 +214,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await _repo.logout();
+    _resetDataProviders();
     ref.read(artistProvider.notifier).clearSessionProfile();
     final bool hasAccount = await _repo.hasLocalAccount();
     state = AuthState(
@@ -224,8 +224,34 @@ class AuthNotifier extends Notifier<AuthState> {
     _refreshRouter();
   }
 
+  /// Suppression définitive du compte studio (App Store 5.1.1(v)).
+  Future<void> deleteAccount() async {
+    await _repo.deleteAccount();
+
+    await ref.read(preferencesServiceProvider).deleteAllArtistProfiles();
+
+    _resetDataProviders();
+    ref.read(artistProvider.notifier).clearSessionProfile();
+    state = const AuthState(
+      status: AuthStatus.unauthenticated,
+      hasLocalAccount: false,
+    );
+    _refreshRouter();
+  }
+
   void _refreshRouter() {
     ref.read(authRouterRefreshProvider).notify();
+  }
+
+  /// Les listes métier sont des providers globaux : sans invalidation elles
+  /// garderaient en cache les données du compte précédent.
+  void _resetDataProviders() {
+    ref.invalidate(clientsProvider);
+    ref.invalidate(planningProvider);
+    ref.invalidate(stockProvider);
+    ref.invalidate(accountingProvider);
+    ref.invalidate(latestConsentDatesProvider);
+    ref.invalidate(clientConsentsProvider);
   }
 }
 

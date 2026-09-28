@@ -7,7 +7,9 @@ import '../../../shared/utils/id_generator.dart';
 import '../../intake/domain/intake_qr_link.dart';
 import '../domain/artist.dart';
 
-/// Compte local déjà utilisé — on conserve le profil studio d’origine.
+/// Compte studio historique : conserve son rôle admin et son exemption de
+/// paywall. Aucune donnée ne lui est associée dans l'app, tout vient de
+/// Supabase comme pour n'importe quel autre compte.
 const String kLegacyAccountEmail = 'morgandesk@gmail.com';
 
 class ArtistNotifier extends Notifier<Artist> {
@@ -17,60 +19,8 @@ class ArtistNotifier extends Notifier<Artist> {
   PreferencesService get _prefs => ref.read(preferencesServiceProvider);
   SupabaseClient? get _supabase => ref.read(supabaseClientProvider);
 
-  /// Profil déjà inscrit avant le multi-étapes (session DesK Tattoo).
-  static const Artist legacyMorganProfile = Artist(
-    id: 'artist_morgan_desk',
-    firstName: 'Morgan',
-    lastName: 'Desk',
-    email: kLegacyAccountEmail,
-    phone: '+33 6 00 00 00 00',
-    studioName: 'DesK Tattoo Studio',
-    address: '1 rue du Studio',
-    city: 'Paris',
-    siret: '00000000000000',
-    specialties: <String>['Black & Grey', 'Réalisme', 'Géométrique'],
-    experienceYears: 6,
-    bio:
-        'Tatoueur depuis 2020, spécialisé dans le réalisme et le black & grey. Studio basé à Paris.',
-    instagram: '@desk.tattoo',
-    role: ArtistRole.admin,
-    subscriptionStatus: SubscriptionStatus.active,
-  );
-
-  Future<void> ensureLegacyMorganProfile() async {
-    final Artist? stored = _prefs.readArtistProfile(kLegacyAccountEmail);
-    if (stored == null) {
-      await _prefs.writeArtistProfile(legacyMorganProfile);
-    }
-    await _prefs.markLegacyMorganProfileRestored();
-  }
-
   Future<void> loadForEmail(String email, {String? remoteId}) async {
     final String normalized = email.trim().toLowerCase();
-    if (normalized == kLegacyAccountEmail) {
-      await ensureLegacyMorganProfile();
-      Artist legacy =
-          _prefs.readArtistProfile(normalized) ?? legacyMorganProfile;
-      final String? uuid = _uuidOrNull(remoteId) ?? _uuidOrNull(legacy.id);
-      if (uuid != null) {
-        legacy = legacy.copyWith(id: uuid);
-      }
-      state = legacy;
-      // Try refresh from Supabase without losing admin entitlement.
-      final Artist? remote = await _fetchRemote(uuid ?? '');
-      if (remote != null) {
-        state = remote.copyWith(
-          role: ArtistRole.admin,
-          subscriptionStatus: SubscriptionStatus.active,
-          publicIntakeToken: _preferredIntakeToken(
-            remote.publicIntakeToken,
-            legacy.publicIntakeToken,
-          ),
-        );
-        await _prefs.writeArtistProfile(state);
-      }
-      return;
-    }
 
     if (remoteId != null && remoteId.isNotEmpty) {
       final Artist? remote = await _fetchRemote(remoteId);
@@ -237,12 +187,6 @@ class ArtistNotifier extends Notifier<Artist> {
     String? remoteId,
   }) async {
     final String normalized = email.trim().toLowerCase();
-
-    if (normalized == kLegacyAccountEmail) {
-      await ensureLegacyMorganProfile();
-      state = legacyMorganProfile.copyWith(id: remoteId ?? legacyMorganProfile.id);
-      return state;
-    }
 
     final bool isLegacyId = remoteId == null || remoteId.isEmpty;
     final Artist artist = Artist(
